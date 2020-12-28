@@ -70,8 +70,8 @@ impl HelloTriangleApp {
             .api_version(vk::make_version(1, 2, 0))
             .build();
 
-        let extension_names = ash_window::enumerate_required_extensions(window).unwrap();
-        let extension_names = extension_names
+        let window_extensions = ash_window::enumerate_required_extensions(window).unwrap();
+        let extension_names = window_extensions
             .iter()
             .map(|ext| ext.as_ptr())
             .collect::<Vec<_>>();
