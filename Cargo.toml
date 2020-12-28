@@ -9,4 +9,5 @@ lto = true
 
 [dependencies]
 ash = "0.31.0"
+ash-window = "0.5.0"
 winit = "0.24.0"
