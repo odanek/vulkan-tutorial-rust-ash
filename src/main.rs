@@ -3,6 +3,7 @@ use winit::{
 };
 
 mod app;
+mod vulkan_context;
 
 use app::HelloTriangleApp;
 
