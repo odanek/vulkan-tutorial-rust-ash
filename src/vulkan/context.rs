@@ -1,17 +1,25 @@
 use winit::window::Window;
 
-use ash::version::EntryV1_0;
-use ash::{vk, Entry};
+use ash::{    
+    vk, 
+    Entry,
+    version::{
+        EntryV1_0,
+    },
+    extensions::{
+        ext::DebugReport,
+    }
+};
 use ash_window;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
-pub struct VulkanSettings {
+pub struct Settings {
     validation: bool
 }
 
-impl VulkanSettings {
+impl Settings {
     pub fn new(validation: bool) -> Self {
         Self {
             validation
@@ -19,13 +27,13 @@ impl VulkanSettings {
     }
 }
 
-pub struct VulkanContext {
+pub struct Context {
     entry: ash::Entry,
     instance: ash::Instance,
 }
 
-impl VulkanContext {
-    pub fn new(window: &Window, settings: &VulkanSettings) -> Self {
+impl Context {
+    pub fn new(window: &Window, settings: &Settings) -> Self {
         let entry = Entry::new().expect("Failed to create Vulkan entry.");
         let app_name = CString::new("Vulkan Application").unwrap();
         let engine_name = CString::new("No Engine").unwrap();
@@ -51,15 +59,16 @@ impl VulkanContext {
 
         let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
 
-        VulkanContext { entry, instance }
+        Context { entry, instance }
     }
 
-    fn enumerate_extensions(window: &Window, settings: &VulkanSettings) -> Vec<&'static CStr> {
+    fn enumerate_extensions(window: &Window, settings: &Settings) -> Vec<&'static CStr> {
         let window_extensions = ash_window::enumerate_required_extensions(window).unwrap();
-        let extensions = window_extensions;
-        // if ENABLE_VALIDATION_LAYERS {
-        //     extension_names.push(DebugReport::name().as_ptr());
-        // }
+        let mut extensions = window_extensions;
+
+        if settings.validation {
+            extensions.push(DebugReport::name());
+        }
         // let (_layer_names, layer_names_ptrs) = get_layer_names_and_pointers();
 
         extensions
