@@ -50,10 +50,6 @@ impl HelloTriangleApp {
             .unwrap();
         (event_loop, window)
     }
-
-    // fn cleanup(&mut self) {
-
-    // }
 }
 
 fn main() {
