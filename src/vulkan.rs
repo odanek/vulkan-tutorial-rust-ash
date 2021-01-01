@@ -1,14 +1,15 @@
 mod debug;
+mod extensions;
 
 use winit::window::Window;
 
-use ash::{extensions::ext::DebugUtils, version::EntryV1_0, vk, Entry};
+use ash::{extensions::ext::DebugUtils, version::{EntryV1_0, InstanceV1_0}, vk, Entry};
 use ash_window;
 
 use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 
 use debug::*;
+use extensions::*;
 
 pub struct Settings {
     validation: bool,
@@ -23,23 +24,29 @@ impl Settings {
 pub struct Context {
     entry: ash::Entry,
     instance: ash::Instance,
-    debug_utils_loader: ash::extensions::ext::DebugUtils,
-    debug_messenger: vk::DebugUtilsMessengerEXT,
+    validation: Option<ValidationContext>
 }
 
 impl Context {
     pub fn new(window: &Window, settings: &Settings) -> Self {
         let entry = Entry::new().expect("Failed to create Vulkan entry.");
         let instance = Self::create_instance(window, settings, &entry);
-        let (debug_utils_loader, debug_messenger) =
-            setup_debug_utils(settings.validation, &entry, &instance);
+        let validation = if settings.validation { Some(setup_debug_utils(&entry, &instance)) } else { None };
 
         Context {
             entry,
             instance,
-            debug_utils_loader,
-            debug_messenger,
+            validation
         }
+    }
+
+    pub fn wait_device_idle(&self) {
+        // TODO
+        // unsafe {
+            // self.device
+            //     .device_wait_idle()
+            //     .expect("Failed to wait device idle!")
+        // };
     }
 
     fn create_instance(window: &Window, settings: &Settings, entry: &ash::Entry) -> ash::Instance {
@@ -50,11 +57,10 @@ impl Context {
             .application_version(vk::make_version(1, 0, 0))
             .engine_name(engine_name.as_c_str())
             .engine_version(vk::make_version(0, 0, 1))
-            .api_version(vk::make_version(1, 2, 0))
-            .build();
+            .api_version(vk::make_version(1, 2, 0));            
 
         let extensions = Self::enumerate_extensions(window, settings);
-        let extension_names = Self::get_extensions_names(&extensions);
+        let extension_names = extension_names_from_cstr(&extensions);
 
         let mut instance_create_info = vk::InstanceCreateInfo::builder()
             .application_info(&app_info)
@@ -63,9 +69,10 @@ impl Context {
         if settings.validation {
             check_validation_layer_support(&entry);
             let validation_layers = get_validation_layers();
+            let validation_layer_names = extension_names_from_cstring(&validation_layers);
             let mut debug_utils_create_info = populate_debug_messenger_create_info();
             instance_create_info = instance_create_info
-                .enabled_layer_names(&validation_layers)
+                .enabled_layer_names(&validation_layer_names)
                 .push_next(&mut debug_utils_create_info);
             unsafe {
                 entry
@@ -91,26 +98,19 @@ impl Context {
         }
 
         extensions
-    }
-
-    fn get_extensions_names(extensions: &Vec<&'static CStr>) -> Vec<*const c_char> {
-        extensions
-            .iter()
-            .map(|ext| ext.as_ptr())
-            .collect::<Vec<_>>()
-    }
+    }    
 }
 
-// impl Drop for VulkanApp {
-//     fn drop(&mut self) {
-//         unsafe {
-//             if VALIDATION.is_enable {
-//                 self.debug_utils_loader
-//                     .destroy_debug_utils_messenger(self.debug_merssager, None);
-//             }
-//             self.instance.destroy_instance(None);
-//         }
-//     }
-// }
-
-// TODO: Vyzkouset ze loguje chyby
+impl Drop for Context {
+    fn drop(&mut self) {
+        println!("Dropping context");
+        // TODO: Improve this - Drop on ValidationContext and Drop on Instance?
+        let validation = self.validation.take();
+        if let Some(validation_context) = validation {
+            validation_context.destroy();
+        }
+        unsafe {            
+            self.instance.destroy_instance(None);            
+        }
+    }
+}

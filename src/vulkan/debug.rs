@@ -1,17 +1,26 @@
-use std::{
-    ffi::{c_void, CStr, CString},
-    os::raw::c_char,
-    ptr,
-};
+use std::ffi::{c_void, CStr, CString};
 
-use ash::{version::EntryV1_0, vk, Entry};
+use ash::{extensions::ext::DebugUtils, version::EntryV1_0, vk, Entry};
 
 const REQUIRED_LAYERS: [&str; 1] = ["VK_LAYER_KHRONOS_validation"];
 
-pub fn get_validation_layers() -> Vec<*const c_char> {
+pub struct ValidationContext {
+    debug_utils: DebugUtils,
+    messenger: vk::DebugUtilsMessengerEXT,
+}
+
+impl ValidationContext {
+    pub fn destroy(self) {
+        unsafe {
+            self.debug_utils.destroy_debug_utils_messenger(self.messenger, None);
+        }
+    }
+}
+
+pub fn get_validation_layers() -> Vec<CString> {
     REQUIRED_LAYERS
         .iter()
-        .map(|name| CString::new(*name).unwrap().as_ptr())
+        .map(|name| CString::new(*name).unwrap())
         .collect::<Vec<_>>()
 }
 
@@ -59,44 +68,29 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
 }
 
 pub fn populate_debug_messenger_create_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
-    // TODO: Use some builder here
-    vk::DebugUtilsMessengerCreateInfoEXT {
-        s_type: vk::StructureType::DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-        p_next: ptr::null(),
-        flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
-        message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
-            // vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE |
-            // vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
-            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
-        message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-            | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
-            | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
-        pfn_user_callback: Some(vulkan_debug_utils_callback),
-        p_user_data: ptr::null_mut(),
-    }
+    vk::DebugUtilsMessengerCreateInfoEXT::builder()
+        .message_severity(
+            vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+        )
+        .message_type(
+            vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+                | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
+        )
+        .pfn_user_callback(Some(vulkan_debug_utils_callback))
+        .build()
 }
 
-pub fn setup_debug_utils(
-    enabled: bool,
-    entry: &ash::Entry,
-    instance: &ash::Instance,
-) -> (ash::extensions::ext::DebugUtils, vk::DebugUtilsMessengerEXT) {
-    let debug_utils_loader = ash::extensions::ext::DebugUtils::new(entry, instance);
+pub fn setup_debug_utils(entry: &ash::Entry, instance: &ash::Instance) -> ValidationContext {
+    let debug_utils = DebugUtils::new(entry, instance);
+    let messanger_ci = populate_debug_messenger_create_info();
 
-    if !enabled {
-        (debug_utils_loader, ash::vk::DebugUtilsMessengerEXT::null())
-    } else {
-        let messenger_ci = populate_debug_messenger_create_info();
+    let messenger = unsafe {
+        debug_utils
+            .create_debug_utils_messenger(&messanger_ci, None)
+            .expect("Debug Utils Callback")
+    };
 
-        let utils_messenger = unsafe {
-            debug_utils_loader
-                .create_debug_utils_messenger(&messenger_ci, None)
-                .expect("Debug Utils Callback")
-        };
-
-        (debug_utils_loader, utils_messenger)
-    }
+    ValidationContext { debug_utils, messenger }
 }
-
-// TODO: Udelat neco jako DebugContext a v create udelat Option<DebugContext>
-// Na DebugContext udelat impl Drop, ale udelat ho i na Context

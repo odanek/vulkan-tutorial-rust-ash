@@ -16,7 +16,7 @@ pub struct HelloTriangleApp {
 impl HelloTriangleApp {
     pub fn new(window_size: PhysicalSize<u32>) -> HelloTriangleApp {
         let (event_loop, window) = HelloTriangleApp::init_window(&window_size);
-        let vulkan_settings = vulkan::Settings::new(false);
+        let vulkan_settings = vulkan::Settings::new(true);
         let vulkan_context = vulkan::Context::new(&window, &vulkan_settings);
 
         return HelloTriangleApp {
@@ -27,15 +27,20 @@ impl HelloTriangleApp {
     }
 
     pub fn run(self) {
-        let self_window_id = self.window.id();
+        let window = self.window;
+        let vulkan_context = self.vulkan_context;
 
         self.event_loop.run(move |event, _, control_flow| {
-            *control_flow = ControlFlow::Wait;
             match event {
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    window_id,
-                } if window_id == self_window_id => *control_flow = ControlFlow::Exit,
+                Event::WindowEvent { event, .. } => {
+                    match event {
+                        WindowEvent::CloseRequested => {
+                            vulkan_context.wait_device_idle();
+                            *control_flow = ControlFlow::Exit
+                        },
+                        _ => ()
+                    }
+                },
                 _ => (),
             }
         });
