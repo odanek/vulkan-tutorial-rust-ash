@@ -4,15 +4,35 @@ use ash::{extensions::ext::DebugUtils, version::EntryV1_0, vk, Entry};
 
 const REQUIRED_LAYERS: [&str; 1] = ["VK_LAYER_KHRONOS_validation"];
 
-pub struct ValidationContext {
+pub struct VkValidation {
     debug_utils: DebugUtils,
     messenger: vk::DebugUtilsMessengerEXT,
 }
 
-impl ValidationContext {
-    pub fn destroy(self) {
+impl VkValidation {
+    pub fn new(entry: &ash::Entry, instance: &ash::Instance) -> VkValidation {
+        let debug_utils = DebugUtils::new(entry, instance);
+        let messanger_ci = populate_debug_messenger_create_info();
+
+        let messenger = unsafe {
+            debug_utils
+                .create_debug_utils_messenger(&messanger_ci, None)
+                .expect("Debug Utils Callback")
+        };
+
+        VkValidation {
+            debug_utils,
+            messenger,
+        }
+    }
+}
+
+impl Drop for VkValidation {
+    fn drop(&mut self) {
+        println!("Dropping validation");
         unsafe {
-            self.debug_utils.destroy_debug_utils_messenger(self.messenger, None);
+            self.debug_utils
+                .destroy_debug_utils_messenger(self.messenger, None);
         }
     }
 }
@@ -80,17 +100,4 @@ pub fn populate_debug_messenger_create_info() -> vk::DebugUtilsMessengerCreateIn
         )
         .pfn_user_callback(Some(vulkan_debug_utils_callback))
         .build()
-}
-
-pub fn setup_debug_utils(entry: &ash::Entry, instance: &ash::Instance) -> ValidationContext {
-    let debug_utils = DebugUtils::new(entry, instance);
-    let messanger_ci = populate_debug_messenger_create_info();
-
-    let messenger = unsafe {
-        debug_utils
-            .create_debug_utils_messenger(&messanger_ci, None)
-            .expect("Debug Utils Callback")
-    };
-
-    ValidationContext { debug_utils, messenger }
 }

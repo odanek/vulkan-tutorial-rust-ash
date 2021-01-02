@@ -1,5 +1,6 @@
 mod vulkan;
 
+use vulkan::{VkContext, VkSettings};
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -10,40 +11,37 @@ use winit::{
 pub struct HelloTriangleApp {
     event_loop: EventLoop<()>,
     window: Window,
-    vulkan_context: vulkan::Context,
+    vk_context: VkContext,
 }
 
 impl HelloTriangleApp {
     pub fn new(window_size: PhysicalSize<u32>) -> HelloTriangleApp {
         let (event_loop, window) = HelloTriangleApp::init_window(&window_size);
-        let vulkan_settings = vulkan::Settings::new(true);
-        let vulkan_context = vulkan::Context::new(&window, &vulkan_settings);
+        let vk_settings = VkSettings { validation: true };
+        let vk_context = VkContext::new(&window, &vk_settings);
 
         return HelloTriangleApp {
             event_loop,
             window,
-            vulkan_context,
+            vk_context,
         };
     }
 
     pub fn run(self) {
-        let window = self.window;
-        let vulkan_context = self.vulkan_context;
+        let _ = self.window;
+        let vk_context = self.vk_context;
 
-        self.event_loop.run(move |event, _, control_flow| {
-            match event {
-                Event::WindowEvent { event, .. } => {
-                    match event {
-                        WindowEvent::CloseRequested => {
-                            vulkan_context.wait_device_idle();
-                            *control_flow = ControlFlow::Exit
-                        },
-                        _ => ()
+        self.event_loop
+            .run(move |event, _, control_flow| match event {
+                Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::CloseRequested => {
+                        vk_context.wait_device_idle();
+                        *control_flow = ControlFlow::Exit
                     }
+                    _ => (),
                 },
                 _ => (),
-            }
-        });
+            });
     }
 
     fn init_window(size: &PhysicalSize<u32>) -> (EventLoop<()>, Window) {
@@ -52,7 +50,7 @@ impl HelloTriangleApp {
             .with_title("Vulkan Tutorial - Rust")
             .with_inner_size(*size)
             .build(&event_loop)
-            .unwrap();
+            .expect("Unable to create application window");
         (event_loop, window)
     }
 }
