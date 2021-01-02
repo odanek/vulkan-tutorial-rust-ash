@@ -1,17 +1,16 @@
 use winit::window::Window;
 
-use ash::{
-    Entry,
+use ash::Entry;
+
+use super::{
+    debug::VkValidation, instance::VkInstance, physical_device::VkPhysicalDevice, settings::VkSettings,
 };
 
-use super::debug::*;
-use super::instance::VkInstance;
-use super::settings::VkSettings;
-
 pub struct VkContext {
-    validation: Option<VkValidation>,
-    instance: VkInstance,
-    entry: ash::Entry,
+    _validation: Option<VkValidation>,
+    _physical_device: VkPhysicalDevice,
+    _instance: VkInstance,
+    _entry: ash::Entry,
 }
 
 impl VkContext {
@@ -19,15 +18,17 @@ impl VkContext {
         let entry = Entry::new().expect("Failed to create Vulkan entry.");
         let instance = VkInstance::new(window, settings, &entry); // Move to instance.rs
         let validation = if settings.validation {
-            Some(VkValidation::new(&entry, &instance.as_raw()))
+            Some(VkValidation::new(&entry, &instance))
         } else {
             None
         };
+        let physical_device = VkPhysicalDevice::new(&instance);
 
         VkContext {
-            entry,
-            instance,
-            validation,
+            _validation: validation,
+            _physical_device: physical_device,
+            _instance: instance,
+            _entry: entry,
         }
     }
 

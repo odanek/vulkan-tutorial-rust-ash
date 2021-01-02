@@ -3,11 +3,11 @@ use winit::window::Window;
 use ash::{extensions::ext::DebugUtils, version::{EntryV1_0, InstanceV1_0}, vk};
 use ash_window;
 
-use std::ffi::{CStr, CString};
+use std::{ffi::{CStr, CString}, ops::Deref};
 
 use super::settings::VkSettings;
 use super::debug::*;
-use super::extensions::*;
+use super::utils::*;
 
 pub struct VkInstance(ash::Instance);
 
@@ -51,8 +51,12 @@ impl VkInstance {
             build_instance(entry, instance_create_info)
         }
     }
+}
 
-    pub fn as_raw(&self) -> &ash::Instance { // TODO: Deref?
+impl Deref for VkInstance {
+    type Target = ash::Instance;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
