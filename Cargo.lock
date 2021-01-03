@@ -830,6 +830,7 @@ version = "0.0.1"
 dependencies = [
  "ash",
  "ash-window",
+ "log",
  "winit",
 ]
 

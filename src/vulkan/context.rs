@@ -3,7 +3,8 @@ use winit::window::Window;
 use ash::Entry;
 
 use super::{
-    debug::VkValidation, instance::VkInstance, physical_device::VkPhysicalDevice, settings::VkSettings,
+    debug::VkValidation, instance::VkInstance, physical_device::VkPhysicalDevice,
+    settings::VkSettings,
 };
 
 pub struct VkContext {

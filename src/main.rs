@@ -1,5 +1,8 @@
+mod logger;
 mod vulkan;
 
+use log::LevelFilter;
+use logger::init_logging;
 use vulkan::{VkContext, VkSettings};
 use winit::{
     dpi::PhysicalSize,
@@ -56,6 +59,8 @@ impl HelloTriangleApp {
 }
 
 fn main() {
+    init_logging(LevelFilter::Debug);
+
     let window_size = PhysicalSize::new(800, 600);
     let app = HelloTriangleApp::new(window_size);
     app.run();

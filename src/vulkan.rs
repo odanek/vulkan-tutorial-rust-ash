@@ -1,9 +1,9 @@
-mod settings;
+mod context;
+mod debug;
 mod instance;
 mod physical_device;
+mod settings;
 mod utils;
-mod debug;
-mod context;
 
-pub use settings::VkSettings;
 pub use context::VkContext;
+pub use settings::VkSettings;

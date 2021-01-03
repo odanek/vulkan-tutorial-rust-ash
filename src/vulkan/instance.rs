@@ -1,12 +1,19 @@
 use winit::window::Window;
 
-use ash::{extensions::ext::DebugUtils, version::{EntryV1_0, InstanceV1_0}, vk};
+use ash::{
+    extensions::ext::DebugUtils,
+    version::{EntryV1_0, InstanceV1_0},
+    vk,
+};
 use ash_window;
 
-use std::{ffi::{CStr, CString}, ops::Deref};
+use std::{
+    ffi::{CStr, CString},
+    ops::Deref,
+};
 
-use super::settings::VkSettings;
 use super::debug::*;
+use super::settings::VkSettings;
 use super::utils::*;
 
 pub struct VkInstance(ash::Instance);
@@ -14,8 +21,8 @@ pub struct VkInstance(ash::Instance);
 impl Drop for VkInstance {
     fn drop(&mut self) {
         println!("Dropping instance");
-        unsafe {            
-            self.0.destroy_instance(None);            
+        unsafe {
+            self.0.destroy_instance(None);
         }
     }
 }
@@ -29,7 +36,7 @@ impl VkInstance {
             .application_version(vk::make_version(1, 0, 0))
             .engine_name(engine_name.as_c_str())
             .engine_version(vk::make_version(0, 0, 1))
-            .api_version(vk::make_version(1, 2, 0));            
+            .api_version(vk::make_version(1, 2, 0));
 
         let extensions = enumerate_extensions(window, settings);
         let extension_names = coerce_extension_names(&extensions);
