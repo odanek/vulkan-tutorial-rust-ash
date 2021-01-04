@@ -166,19 +166,19 @@ fn get_queue_supported_commands(queue_family: &vk::QueueFamilyProperties) -> Str
     let mut result: Vec<String> = Vec::new();
 
     if queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS) {
-        result.push(String::from("Graphics"));
+        result.push("Graphics".to_owned());
     }
     if queue_family.queue_flags.contains(vk::QueueFlags::COMPUTE) {
-        result.push(String::from("Compute"));
+        result.push("Compute".to_owned());
     }
     if queue_family.queue_flags.contains(vk::QueueFlags::TRANSFER) {
-        result.push(String::from("Transfer"));
+        result.push("Transfer".to_owned());
     }
     if queue_family
         .queue_flags
         .contains(vk::QueueFlags::SPARSE_BINDING)
     {
-        result.push(String::from("SparseBinding"));
+        result.push("SparseBinding".to_owned());
     }
 
     result.join(", ")
