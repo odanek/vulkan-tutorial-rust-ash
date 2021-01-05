@@ -1,11 +1,11 @@
 mod context;
 mod debug;
+mod device;
 mod instance;
 mod physical_device;
-mod device;
 mod settings;
-mod version;
 mod utils;
+mod version;
 
 pub use context::VkContext;
 pub use settings::VkSettings;

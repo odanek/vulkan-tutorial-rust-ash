@@ -18,15 +18,6 @@ use super::utils::*;
 
 pub struct VkInstance(ash::Instance);
 
-impl Drop for VkInstance {
-    fn drop(&mut self) {
-        println!("Dropping instance");
-        unsafe {
-            self.0.destroy_instance(None);
-        }
-    }
-}
-
 impl VkInstance {
     pub fn new(window: &Window, settings: &VkSettings, entry: &ash::Entry) -> VkInstance {
         let app_name = CString::new("Vulkan Application").unwrap();
@@ -56,6 +47,15 @@ impl VkInstance {
             build_instance(entry, instance_create_info)
         } else {
             build_instance(entry, instance_create_info)
+        }
+    }
+}
+
+impl Drop for VkInstance {
+    fn drop(&mut self) {
+        println!("Dropping instance");
+        unsafe {
+            self.0.destroy_instance(None);
         }
     }
 }

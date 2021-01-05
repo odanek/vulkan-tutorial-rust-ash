@@ -5,7 +5,7 @@ use ash::vk::{version_major, version_minor, version_patch};
 pub struct VkVersion {
     major: u32,
     minor: u32,
-    patch: u32
+    patch: u32,
 }
 
 impl VkVersion {
@@ -16,7 +16,7 @@ impl VkVersion {
         VkVersion {
             major,
             minor,
-            patch
+            patch,
         }
     }
 }

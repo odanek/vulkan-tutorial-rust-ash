@@ -10,19 +10,19 @@ pub enum DeviceType {
     IntegratedGpu,
     DiscreteGpu,
     VirtualGpu,
-    Other
+    Other,
 }
 
 pub struct QueueFamily {
-    queue_count: u32,
-    graphics: bool,
-    compute: bool, 
-    transfer: bool,
-    sparse_binding: bool,
+    pub queue_count: u32,
+    pub graphics: bool,
+    pub compute: bool,
+    pub transfer: bool,
+    pub sparse_binding: bool,
 }
 
 pub struct VkPhysicalDevice {
-    handle: vk::PhysicalDevice,
+    pub handle: vk::PhysicalDevice,
     pub name: String,
     pub kind: DeviceType,
     pub api_version: VkVersion,
@@ -99,7 +99,10 @@ fn enumerate_devices(instance: &ash::Instance) -> Vec<vk::PhysicalDevice> {
     }
 }
 
-fn create_physical_device(instance: &ash::Instance, handle: vk::PhysicalDevice) -> VkPhysicalDevice {
+fn create_physical_device(
+    instance: &ash::Instance,
+    handle: vk::PhysicalDevice,
+) -> VkPhysicalDevice {
     let properties = unsafe { instance.get_physical_device_properties(handle) };
     let kind = get_device_type(&properties);
     let name = coerce_string(&properties.device_name);
@@ -110,17 +113,17 @@ fn create_physical_device(instance: &ash::Instance, handle: vk::PhysicalDevice) 
         name,
         kind,
         api_version,
-        queue_families
+        queue_families,
     }
 }
 
 fn describe_device(device: &VkPhysicalDevice) {
     log::info!(
         "Device Name: {}, type: {:?}, api: {}",
-        device.name,        
+        device.name,
         device.kind,
         device.api_version
-    );    
+    );
 
     let queue_families = &device.queue_families;
     log::info!("Queue Family Count: {}", queue_families.len());
@@ -143,19 +146,21 @@ fn describe_device(device: &VkPhysicalDevice) {
 }
 
 fn rate_device_suitability(device: &VkPhysicalDevice) -> DeviceScore {
-    let mut score = DeviceScore::default();    
+    let mut score = DeviceScore::default();
     match device.kind {
         DeviceType::DiscreteGpu => score = score.add(100),
         DeviceType::IntegratedGpu => score = score.add(50),
-        _ => ()
+        _ => (),
     }
 
     let queue_families = &device.queue_families;
-    let has_graphics_family = queue_families.iter().any(|family| family.queue_count > 0 && family.graphics);
+    let has_graphics_family = queue_families
+        .iter()
+        .any(|family| family.queue_count > 0 && family.graphics);
     if !has_graphics_family {
-        return DeviceScore::unsuitable()
+        return DeviceScore::unsuitable();
     }
-    
+
     score
 }
 
@@ -165,7 +170,7 @@ fn get_device_type(properties: &vk::PhysicalDeviceProperties) -> DeviceType {
         vk::PhysicalDeviceType::INTEGRATED_GPU => DeviceType::IntegratedGpu,
         vk::PhysicalDeviceType::DISCRETE_GPU => DeviceType::DiscreteGpu,
         vk::PhysicalDeviceType::VIRTUAL_GPU => DeviceType::VirtualGpu,
-        _ => DeviceType::Other
+        _ => DeviceType::Other,
     }
 }
 
@@ -188,13 +193,16 @@ fn get_queue_supported_commands(queue_family: &QueueFamily) -> String {
     result.join(", ")
 }
 
-fn get_queue_families(instance: &ash::Instance, physical_device: vk::PhysicalDevice) -> Vec<QueueFamily> {
-    unsafe { 
+fn get_queue_families(
+    instance: &ash::Instance,
+    physical_device: vk::PhysicalDevice,
+) -> Vec<QueueFamily> {
+    unsafe {
         instance
-        .get_physical_device_queue_family_properties(physical_device)
-        .iter()
-        .map(|definition| describe_queue_family(definition))
-        .collect::<Vec<_>>()
+            .get_physical_device_queue_family_properties(physical_device)
+            .iter()
+            .map(|definition| describe_queue_family(definition))
+            .collect::<Vec<_>>()
     }
 }
 
@@ -204,6 +212,8 @@ fn describe_queue_family(queue_family: &vk::QueueFamilyProperties) -> QueueFamil
         graphics: queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS),
         compute: queue_family.queue_flags.contains(vk::QueueFlags::COMPUTE),
         transfer: queue_family.queue_flags.contains(vk::QueueFlags::TRANSFER),
-        sparse_binding: queue_family.queue_flags.contains(vk::QueueFlags::SPARSE_BINDING),
+        sparse_binding: queue_family
+            .queue_flags
+            .contains(vk::QueueFlags::SPARSE_BINDING),
     }
 }
