@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use ash::{version::InstanceV1_0, vk};
 
-use super::{utils::coerce_string, version::VkVersion};
+use super::{surface::VkSurface, utils::coerce_string, version::VkVersion};
 
 #[derive(Debug)]
 pub enum DeviceType {
@@ -14,6 +14,7 @@ pub enum DeviceType {
 }
 
 pub struct QueueFamily {
+    pub index: u32,
     pub queue_count: u32,
     pub graphics: bool,
     pub compute: bool,
@@ -30,7 +31,7 @@ pub struct VkPhysicalDevice {
 }
 
 impl VkPhysicalDevice {
-    pub fn new(instance: &ash::Instance) -> VkPhysicalDevice {
+    pub fn new(instance: &ash::Instance, surface: &VkSurface) -> VkPhysicalDevice {
         let physical_devices = enumerate_devices(instance);
         log::info!(
             "{} device(s) found with vulkan support",
@@ -43,7 +44,7 @@ impl VkPhysicalDevice {
             let physical_device = create_physical_device(instance, handle);
             describe_device(&physical_device);
 
-            let score = rate_device_suitability(&physical_device);
+            let score = rate_device_suitability(&physical_device, surface);
             if score.is_suitable() && score.is_better_than(&best_score) {
                 best_physical_device = Some(physical_device);
                 best_score = score;
@@ -145,7 +146,7 @@ fn describe_device(device: &VkPhysicalDevice) {
     // log::info!("Geometry Shader support: {}", features.geometry_shader == 1);
 }
 
-fn rate_device_suitability(device: &VkPhysicalDevice) -> DeviceScore {
+fn rate_device_suitability(device: &VkPhysicalDevice, surface: &VkSurface) -> DeviceScore {
     let mut score = DeviceScore::default();
     match device.kind {
         DeviceType::DiscreteGpu => score = score.add(100),
@@ -154,10 +155,12 @@ fn rate_device_suitability(device: &VkPhysicalDevice) -> DeviceScore {
     }
 
     let queue_families = &device.queue_families;
-    let has_graphics_family = queue_families
-        .iter()
-        .any(|family| family.queue_count > 0 && family.graphics);
-    if !has_graphics_family {
+    if !has_queue_family(queue_families, |family| family.graphics) {
+        return DeviceScore::unsuitable();
+    }
+    if !has_queue_family(queue_families, |family| {
+        surface.physical_device_queue_support(device, family.index)
+    }) {
         return DeviceScore::unsuitable();
     }
 
@@ -197,17 +200,21 @@ fn get_queue_families(
     instance: &ash::Instance,
     physical_device: vk::PhysicalDevice,
 ) -> Vec<QueueFamily> {
-    unsafe {
-        instance
-            .get_physical_device_queue_family_properties(physical_device)
-            .iter()
-            .map(|definition| describe_queue_family(definition))
-            .collect::<Vec<_>>()
+    let families = unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
+
+    let mut index = 0u32;
+    let mut result = Vec::new();
+    for definition in families.iter() {
+        result.push(create_queue_family(index, definition));
+        index += 1;
     }
+
+    result
 }
 
-fn describe_queue_family(queue_family: &vk::QueueFamilyProperties) -> QueueFamily {
+fn create_queue_family(index: u32, queue_family: &vk::QueueFamilyProperties) -> QueueFamily {
     QueueFamily {
+        index,
         queue_count: queue_family.queue_count,
         graphics: queue_family.queue_flags.contains(vk::QueueFlags::GRAPHICS),
         compute: queue_family.queue_flags.contains(vk::QueueFlags::COMPUTE),
@@ -216,4 +223,10 @@ fn describe_queue_family(queue_family: &vk::QueueFamilyProperties) -> QueueFamil
             .queue_flags
             .contains(vk::QueueFlags::SPARSE_BINDING),
     }
+}
+
+fn has_queue_family(families: &Vec<QueueFamily>, predicate: impl Fn(&QueueFamily) -> bool) -> bool {
+    families
+        .iter()
+        .any(|family| family.queue_count > 0 && predicate(family))
 }

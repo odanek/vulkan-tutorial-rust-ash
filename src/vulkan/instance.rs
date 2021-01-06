@@ -53,7 +53,7 @@ impl VkInstance {
 
 impl Drop for VkInstance {
     fn drop(&mut self) {
-        println!("Dropping instance");
+        log::debug!("Dropping instance");
         unsafe {
             self.0.destroy_instance(None);
         }

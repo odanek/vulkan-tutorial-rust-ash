@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use ash::{version::InstanceV1_0, version::DeviceV1_0, vk};
+use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
 
 use super::physical_device::VkPhysicalDevice;
 
@@ -11,7 +11,7 @@ pub struct VkDevice {
 
 impl VkDevice {
     pub fn new(instance: &ash::Instance, physical_device: &VkPhysicalDevice) -> VkDevice {
-        let graphics_queue_family = select_graphics_queue_family(physical_device);        
+        let graphics_queue_family = select_graphics_queue_family(physical_device);
         let queue_priorities = [1.0f32];
         log::info!("Choosing graphics queue family: {}", graphics_queue_family);
 
@@ -27,21 +27,21 @@ impl VkDevice {
                 .create_device(physical_device.handle, &device_create_info, None)
                 .expect("Unable to create logical device")
         };
-        
+
         let graphics_queue = unsafe { handle.get_device_queue(graphics_queue_family, 0) };
 
-        VkDevice { 
+        VkDevice {
             handle,
-            graphics_queue
+            graphics_queue,
         }
     }
 }
 
 impl Drop for VkDevice {
     fn drop(&mut self) {
-        println!("Dropping logical device");
+        log::debug!("Dropping logical device");
         unsafe {
-            self.handle.destroy_device(None);            
+            self.handle.destroy_device(None);
         }
     }
 }

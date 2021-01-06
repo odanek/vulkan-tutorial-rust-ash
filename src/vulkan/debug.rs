@@ -5,23 +5,23 @@ use ash::{extensions::ext::DebugUtils, version::EntryV1_0, vk, Entry};
 const REQUIRED_LAYERS: [&str; 1] = ["VK_LAYER_KHRONOS_validation"];
 
 pub struct VkValidation {
-    debug_utils: DebugUtils,
+    extension: DebugUtils,
     messenger: vk::DebugUtilsMessengerEXT,
 }
 
 impl VkValidation {
     pub fn new(entry: &ash::Entry, instance: &ash::Instance) -> VkValidation {
-        let debug_utils = DebugUtils::new(entry, instance);
+        let extension = DebugUtils::new(entry, instance);
         let messanger_ci = populate_debug_messenger_create_info();
 
         let messenger = unsafe {
-            debug_utils
+            extension
                 .create_debug_utils_messenger(&messanger_ci, None)
                 .expect("Debug Utils Callback")
         };
 
         VkValidation {
-            debug_utils,
+            extension,
             messenger,
         }
     }
@@ -29,9 +29,9 @@ impl VkValidation {
 
 impl Drop for VkValidation {
     fn drop(&mut self) {
-        println!("Dropping validation");
+        log::debug!("Dropping validation");
         unsafe {
-            self.debug_utils
+            self.extension
                 .destroy_debug_utils_messenger(self.messenger, None);
         }
     }
@@ -82,7 +82,7 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
         _ => "[Unknown]",
     };
     let message = CStr::from_ptr((*p_callback_data).p_message);
-    println!("[Debug]{}{}{:?}", severity, types, message);
+    log::debug!("[Vulkan] {}{}{:?}", severity, types, message);
 
     vk::FALSE
 }

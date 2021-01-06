@@ -4,6 +4,7 @@ mod device;
 mod instance;
 mod physical_device;
 mod settings;
+mod surface;
 mod utils;
 mod version;
 

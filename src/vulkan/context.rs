@@ -4,12 +4,13 @@ use ash::Entry;
 
 use super::{
     debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice,
-    settings::VkSettings,
+    settings::VkSettings, surface::VkSurface,
 };
 
 pub struct VkContext {
     _device: VkDevice,
     _physical_device: VkPhysicalDevice,
+    _surface: VkSurface,
     _validation: Option<VkValidation>,
     _instance: VkInstance,
     _entry: ash::Entry,
@@ -24,13 +25,15 @@ impl VkContext {
         } else {
             None
         };
-        let physical_device = VkPhysicalDevice::new(&instance);
+        let surface = VkSurface::new(&entry, &instance, window);
+        let physical_device = VkPhysicalDevice::new(&instance, &surface);
         let device = VkDevice::new(&instance, &physical_device);
 
         VkContext {
-            _validation: validation,
             _device: device,
             _physical_device: physical_device,
+            _surface: surface,
+            _validation: validation,
             _instance: instance,
             _entry: entry,
         }
