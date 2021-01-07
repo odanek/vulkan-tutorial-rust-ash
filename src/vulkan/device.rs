@@ -2,7 +2,7 @@ use std::{collections::HashSet, ops::Deref};
 
 use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
 
-use super::{physical_device::{QueueFamily, VkPhysicalDevice}, surface::VkSurface};
+use super::{physical_device::VkPhysicalDevice, queue_family::VkQueueFamily, surface::VkSurface};
 
 pub struct VkDevice {
     pub handle: ash::Device,
@@ -11,14 +11,24 @@ pub struct VkDevice {
 }
 
 impl VkDevice {
-    pub fn new(instance: &ash::Instance, physical_device: &VkPhysicalDevice, surface: &VkSurface) -> VkDevice {
-        let graphics_queue_family = find_queue_family(physical_device, |family| family.graphics);
+    pub fn new(
+        instance: &ash::Instance,
+        physical_device: &VkPhysicalDevice,
+        surface: &VkSurface,
+    ) -> VkDevice {
+        let graphics_queue_family = find_queue_family(physical_device, |family| {
+            family.flags.contains(vk::QueueFlags::GRAPHICS)
+        });
         log::info!("Choosing graphics queue family: {}", graphics_queue_family);
 
         let presentation_queue_family = find_queue_family(physical_device, |family| {
-        surface.physical_device_queue_support(physical_device, family.index) });
-        log::info!("Choosing presentation queue family: {}", presentation_queue_family);
-                
+            surface.physical_device_queue_support(physical_device, family.index)
+        });
+        log::info!(
+            "Choosing presentation queue family: {}",
+            presentation_queue_family
+        );
+
         let mut unique_queue_families = HashSet::new();
         unique_queue_families.insert(graphics_queue_family);
         unique_queue_families.insert(presentation_queue_family);
@@ -32,7 +42,7 @@ impl VkDevice {
                 .build();
             queue_infos.push(queue_create_info);
         }
-        
+
         let device_create_info = vk::DeviceCreateInfo::builder().queue_create_infos(&queue_infos);
         let handle = unsafe {
             instance
@@ -46,7 +56,7 @@ impl VkDevice {
         VkDevice {
             handle,
             graphics_queue,
-            presentation_queue
+            presentation_queue,
         }
     }
 }
@@ -68,7 +78,10 @@ impl Deref for VkDevice {
     }
 }
 
-fn find_queue_family(physical_device: &VkPhysicalDevice, predicate: impl Fn(&QueueFamily) -> bool) -> u32 {
+fn find_queue_family(
+    physical_device: &VkPhysicalDevice,
+    predicate: impl Fn(&VkQueueFamily) -> bool,
+) -> u32 {
     physical_device
         .queue_families
         .iter()
