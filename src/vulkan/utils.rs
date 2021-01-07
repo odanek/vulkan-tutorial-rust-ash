@@ -19,7 +19,7 @@ impl RawPtrConvertible for CString {
     }
 }
 
-pub fn coerce_extension_names<T: RawPtrConvertible>(extensions: &Vec<T>) -> Vec<*const c_char> {
+pub fn coerce_extension_names<T: RawPtrConvertible>(extensions: &[T]) -> Vec<*const c_char> {
     extensions
         .iter()
         .map(|ext| ext.as_raw_ptr())

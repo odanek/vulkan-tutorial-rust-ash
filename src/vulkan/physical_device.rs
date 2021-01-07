@@ -108,15 +108,14 @@ fn describe_device(device: &VkPhysicalDevice) {
 
     let queue_families = &device.queue_families;
     log::info!("Queue Family Count: {}", queue_families.len());
-    let mut index = 0;
-    for queue_family in queue_families.iter() {
+
+    for (index, queue_family) in queue_families.iter().enumerate() {
         log::info!(
             "Family: {}, queue count: {}",
             index,
             queue_family.queue_count
         );
         log::info!("Supported commands: {:?}", queue_family.flags);
-        index += 1;
     }
 
     // let features = unsafe { instance.get_physical_device_features(physical_device.handle) };
@@ -127,7 +126,7 @@ fn rate_device_suitability(
     instance: &ash::Instance,
     device: &VkPhysicalDevice,
     surface: &VkSurface,
-    extensions: &Vec<&CStr>,
+    extensions: &[&CStr],
 ) -> i32 {
     let mut score = 0i32;
 
@@ -174,18 +173,16 @@ fn get_queue_families(
 ) -> Vec<VkQueueFamily> {
     let families = unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
 
-    let mut index = 0u32;
     let mut result = Vec::new();
-    for definition in families.iter() {
-        result.push(VkQueueFamily::new(index, definition));
-        index += 1;
+    for (index, definition) in families.iter().enumerate() {
+        result.push(VkQueueFamily::new(index as u32, definition));
     }
 
     result
 }
 
 fn has_queue_family(
-    families: &Vec<VkQueueFamily>,
+    families: &[VkQueueFamily],
     predicate: impl Fn(&VkQueueFamily) -> bool,
 ) -> bool {
     families
@@ -196,7 +193,7 @@ fn has_queue_family(
 fn check_device_extension_support(
     instance: &ash::Instance,
     device: &VkPhysicalDevice,
-    extensions: &Vec<&CStr>,
+    extensions: &[&CStr],
 ) -> bool {
     let extension_props = unsafe {
         instance

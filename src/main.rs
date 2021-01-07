@@ -23,11 +23,11 @@ impl HelloTriangleApp {
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
 
-        return HelloTriangleApp {
+        HelloTriangleApp {
             event_loop,
             window,
             vk_context,
-        };
+        }
     }
 
     pub fn run(self) {

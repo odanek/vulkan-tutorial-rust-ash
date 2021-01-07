@@ -5,7 +5,6 @@ use ash::{
     version::{EntryV1_0, InstanceV1_0},
     vk,
 };
-use ash_window;
 
 use std::{
     ffi::{CStr, CString},
