@@ -27,7 +27,7 @@ impl VkContext {
         };
         let surface = VkSurface::new(&entry, &instance, window);
         let physical_device = VkPhysicalDevice::new(&instance, &surface);
-        let device = VkDevice::new(&instance, &physical_device);
+        let device = VkDevice::new(&instance, &physical_device, &surface);
 
         VkContext {
             _device: device,
