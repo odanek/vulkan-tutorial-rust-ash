@@ -9,7 +9,9 @@ use super::{
 pub struct VkDevice {
     pub handle: ash::Device,
     pub graphics_queue: vk::Queue,
+    pub graphics_queue_family: u32,
     pub presentation_queue: vk::Queue,
+    pub presentation_queue_family: u32,
 }
 
 impl VkDevice {
@@ -62,7 +64,9 @@ impl VkDevice {
         VkDevice {
             handle,
             graphics_queue,
+            graphics_queue_family,
             presentation_queue,
+            presentation_queue_family
         }
     }
 }

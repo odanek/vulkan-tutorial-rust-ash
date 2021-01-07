@@ -1,10 +1,20 @@
+use std::ops::Deref;
+
 use ash::{extensions::khr::Surface, vk};
 
 use super::physical_device::VkPhysicalDevice;
 
 pub struct VkSurface {
     pub extension: Surface,
-    pub surface: vk::SurfaceKHR,
+    pub handle: vk::SurfaceKHR,
+}
+
+impl Deref for VkSurface {
+    type Target = vk::SurfaceKHR;
+
+    fn deref(&self) -> &Self::Target {
+        &self.handle
+    }
 }
 
 pub struct VkSurfaceCapabilities {
@@ -20,9 +30,9 @@ impl VkSurface {
         window: &winit::window::Window,
     ) -> VkSurface {
         let extension = Surface::new(entry, instance);
-        let surface = unsafe { ash_window::create_surface(entry, instance, window, None).unwrap() };
+        let handle = unsafe { ash_window::create_surface(entry, instance, window, None).unwrap() };
 
-        VkSurface { extension, surface }
+        VkSurface { extension, handle }
     }
 
     pub fn physical_device_queue_support(
@@ -35,7 +45,7 @@ impl VkSurface {
                 .get_physical_device_surface_support(
                     physical_device.handle,
                     queue_index,
-                    self.surface,
+                    self.handle,
                 )
                 .expect("Unable to query surface support")
         }
@@ -49,15 +59,15 @@ impl VkSurface {
             VkSurfaceCapabilities {
                 capabilities: self
                     .extension
-                    .get_physical_device_surface_capabilities(physical_device, self.surface)
+                    .get_physical_device_surface_capabilities(physical_device, self.handle)
                     .expect("Unable to query surface capabilities"),
                 formats: self
                     .extension
-                    .get_physical_device_surface_formats(physical_device, self.surface)
+                    .get_physical_device_surface_formats(physical_device, self.handle)
                     .expect("Unable to query surface formats"),
                 present_modes: self
                     .extension
-                    .get_physical_device_surface_present_modes(physical_device, self.surface)
+                    .get_physical_device_surface_present_modes(physical_device, self.handle)
                     .expect("Unable to query surface presentation modes"),
             }
         }
@@ -68,7 +78,7 @@ impl Drop for VkSurface {
     fn drop(&mut self) {
         log::debug!("Dropping surface");
         unsafe {
-            self.extension.destroy_surface(self.surface, None);
+            self.extension.destroy_surface(self.handle, None);
         }
     }
 }

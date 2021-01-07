@@ -31,8 +31,13 @@ impl VkContext {
         let device = VkDevice::new(&instance, &physical_device, &surface);
 
         let window_size = window.inner_size();
-        let swap_chain =
-            VkSwapChain::new(&physical_device, &[window_size.width, window_size.height]);
+        let swap_chain = VkSwapChain::new(
+            &instance,
+            &physical_device,
+            &device,
+            &surface,
+            &[window_size.width, window_size.height],
+        );
 
         VkContext {
             _swap_chain: swap_chain,
