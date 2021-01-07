@@ -1,9 +1,12 @@
-use std::ops::Deref;
+use std::{ffi::CStr, ops::Deref};
 
-use ash::{version::InstanceV1_0, vk};
+use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk};
 
 use super::{
-    queue_family::VkQueueFamily, surface::VkSurface, utils::coerce_string, version::VkVersion,
+    queue_family::VkQueueFamily,
+    surface::{VkSurface, VkSurfaceCapabilities},
+    utils::coerce_string,
+    version::VkVersion,
 };
 
 #[derive(Debug)]
@@ -21,6 +24,7 @@ pub struct VkPhysicalDevice {
     pub kind: DeviceType,
     pub api_version: VkVersion,
     pub queue_families: Vec<VkQueueFamily>,
+    pub surface_caps: VkSurfaceCapabilities,
 }
 
 impl VkPhysicalDevice {
@@ -31,13 +35,14 @@ impl VkPhysicalDevice {
             physical_devices.len()
         );
 
+        let extensions = Self::get_required_device_extensions();
         let mut best_physical_device: Option<VkPhysicalDevice> = None;
         let mut best_score = -1;
         for &handle in physical_devices.iter() {
-            let physical_device = create_physical_device(instance, handle);
+            let physical_device = create_physical_device(instance, surface, handle);
             describe_device(&physical_device);
 
-            let score = rate_device_suitability(&physical_device, surface);
+            let score = rate_device_suitability(instance, &physical_device, surface, &extensions);
             if score > best_score {
                 best_physical_device = Some(physical_device);
                 best_score = score;
@@ -48,6 +53,10 @@ impl VkPhysicalDevice {
             return physical_device;
         }
         panic!("Failed to find a suitable GPU!");
+    }
+
+    pub fn get_required_device_extensions() -> Vec<&'static CStr> {
+        vec![Swapchain::name()]
     }
 }
 
@@ -69,6 +78,7 @@ fn enumerate_devices(instance: &ash::Instance) -> Vec<vk::PhysicalDevice> {
 
 fn create_physical_device(
     instance: &ash::Instance,
+    surface: &VkSurface,
     handle: vk::PhysicalDevice,
 ) -> VkPhysicalDevice {
     let properties = unsafe { instance.get_physical_device_properties(handle) };
@@ -76,12 +86,15 @@ fn create_physical_device(
     let name = coerce_string(&properties.device_name);
     let api_version = VkVersion::parse(properties.api_version);
     let queue_families = get_queue_families(instance, handle);
+    let surface_caps = surface.get_physical_device_surface_capabilties(handle);
+
     VkPhysicalDevice {
         handle,
         name,
         kind,
         api_version,
         queue_families,
+        surface_caps,
     }
 }
 
@@ -110,13 +123,13 @@ fn describe_device(device: &VkPhysicalDevice) {
     // log::info!("Geometry Shader support: {}", features.geometry_shader == 1);
 }
 
-fn rate_device_suitability(device: &VkPhysicalDevice, surface: &VkSurface) -> i32 {
+fn rate_device_suitability(
+    instance: &ash::Instance,
+    device: &VkPhysicalDevice,
+    surface: &VkSurface,
+    extensions: &Vec<&CStr>,
+) -> i32 {
     let mut score = 0i32;
-    match device.kind {
-        DeviceType::DiscreteGpu => score += 100,
-        DeviceType::IntegratedGpu => score += 50,
-        _ => (),
-    }
 
     let queue_families = &device.queue_families;
     if !has_queue_family(queue_families, |family| {
@@ -128,6 +141,18 @@ fn rate_device_suitability(device: &VkPhysicalDevice, surface: &VkSurface) -> i3
         surface.physical_device_queue_support(device, family.index)
     }) {
         return -1;
+    }
+    if device.surface_caps.formats.is_empty() || device.surface_caps.present_modes.is_empty() {
+        return -1;
+    }
+    if !check_device_extension_support(instance, device, extensions) {
+        return -1;
+    }
+
+    match device.kind {
+        DeviceType::DiscreteGpu => score += 100,
+        DeviceType::IntegratedGpu => score += 50,
+        _ => (),
     }
 
     score
@@ -166,4 +191,29 @@ fn has_queue_family(
     families
         .iter()
         .any(|family| family.queue_count > 0 && predicate(family))
+}
+
+fn check_device_extension_support(
+    instance: &ash::Instance,
+    device: &VkPhysicalDevice,
+    extensions: &Vec<&CStr>,
+) -> bool {
+    let extension_props = unsafe {
+        instance
+            .enumerate_device_extension_properties(device.handle)
+            .expect("Unable to query device extensions")
+    };
+
+    for required in extensions.iter() {
+        let found = extension_props.iter().any(|ext| {
+            let name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
+            required == &name
+        });
+
+        if !found {
+            return false;
+        }
+    }
+
+    true
 }

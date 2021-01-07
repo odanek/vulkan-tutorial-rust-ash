@@ -3,8 +3,14 @@ use ash::{extensions::khr::Surface, vk};
 use super::physical_device::VkPhysicalDevice;
 
 pub struct VkSurface {
-    extension: Surface,
+    pub extension: Surface,
     pub surface: vk::SurfaceKHR,
+}
+
+pub struct VkSurfaceCapabilities {
+    pub capabilities: vk::SurfaceCapabilitiesKHR,
+    pub formats: Vec<vk::SurfaceFormatKHR>,
+    pub present_modes: Vec<vk::PresentModeKHR>,
 }
 
 impl VkSurface {
@@ -32,6 +38,28 @@ impl VkSurface {
                     self.surface,
                 )
                 .expect("Unable to query surface support")
+        }
+    }
+
+    pub fn get_physical_device_surface_capabilties(
+        &self,
+        physical_device: vk::PhysicalDevice,
+    ) -> VkSurfaceCapabilities {
+        unsafe {
+            VkSurfaceCapabilities {
+                capabilities: self
+                    .extension
+                    .get_physical_device_surface_capabilities(physical_device, self.surface)
+                    .expect("Unable to query surface capabilities"),
+                formats: self
+                    .extension
+                    .get_physical_device_surface_formats(physical_device, self.surface)
+                    .expect("Unable to query surface formats"),
+                present_modes: self
+                    .extension
+                    .get_physical_device_surface_present_modes(physical_device, self.surface)
+                    .expect("Unable to query surface presentation modes"),
+            }
         }
     }
 }

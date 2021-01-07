@@ -4,10 +4,11 @@ use ash::Entry;
 
 use super::{
     debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice,
-    settings::VkSettings, surface::VkSurface,
+    settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain,
 };
 
 pub struct VkContext {
+    _swap_chain: VkSwapChain,
     _device: VkDevice,
     _physical_device: VkPhysicalDevice,
     _surface: VkSurface,
@@ -29,7 +30,12 @@ impl VkContext {
         let physical_device = VkPhysicalDevice::new(&instance, &surface);
         let device = VkDevice::new(&instance, &physical_device, &surface);
 
+        let window_size = window.inner_size();
+        let swap_chain =
+            VkSwapChain::new(&physical_device, &[window_size.width, window_size.height]);
+
         VkContext {
+            _swap_chain: swap_chain,
             _device: device,
             _physical_device: physical_device,
             _surface: surface,

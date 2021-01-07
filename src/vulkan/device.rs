@@ -2,7 +2,9 @@ use std::{collections::HashSet, ops::Deref};
 
 use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
 
-use super::{physical_device::VkPhysicalDevice, queue_family::VkQueueFamily, surface::VkSurface};
+use super::{
+    physical_device::VkPhysicalDevice, queue_family::VkQueueFamily, surface::VkSurface, utils,
+};
 
 pub struct VkDevice {
     pub handle: ash::Device,
@@ -43,7 +45,11 @@ impl VkDevice {
             queue_infos.push(queue_create_info);
         }
 
-        let device_create_info = vk::DeviceCreateInfo::builder().queue_create_infos(&queue_infos);
+        let extensions = VkPhysicalDevice::get_required_device_extensions();
+        let extension_names = utils::coerce_extension_names(&extensions);
+        let device_create_info = vk::DeviceCreateInfo::builder()
+            .queue_create_infos(&queue_infos)
+            .enabled_extension_names(&extension_names);
         let handle = unsafe {
             instance
                 .create_device(physical_device.handle, &device_create_info, None)

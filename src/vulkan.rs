@@ -6,6 +6,7 @@ mod physical_device;
 mod queue_family;
 mod settings;
 mod surface;
+mod swap_chain;
 mod utils;
 mod version;
 
