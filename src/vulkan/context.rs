@@ -8,19 +8,19 @@ use super::{
 };
 
 pub struct VkContext {
-    _swap_chain: VkSwapChain,
-    _device: VkDevice,
-    _physical_device: VkPhysicalDevice,
-    _surface: VkSurface,
-    _validation: Option<VkValidation>,
-    _instance: VkInstance,
-    _entry: ash::Entry,
+    pub swap_chain: VkSwapChain,
+    pub device: VkDevice,
+    pub physical_device: VkPhysicalDevice,
+    pub surface: VkSurface,
+    pub validation: Option<VkValidation>,
+    pub instance: VkInstance,
+    pub entry: ash::Entry,
 }
 
 impl VkContext {
     pub fn new(window: &Window, settings: &VkSettings) -> VkContext {
         let entry = Entry::new().expect("Failed to create Vulkan entry.");
-        let instance = VkInstance::new(window, settings, &entry); // Move to instance.rs
+        let instance = VkInstance::new(window, &entry, settings.validation);
         let validation = if settings.validation {
             Some(VkValidation::new(&entry, &instance))
         } else {
@@ -40,22 +40,13 @@ impl VkContext {
         );
 
         VkContext {
-            _swap_chain: swap_chain,
-            _device: device,
-            _physical_device: physical_device,
-            _surface: surface,
-            _validation: validation,
-            _instance: instance,
-            _entry: entry,
+            swap_chain,
+            device,
+            physical_device,
+            surface,
+            validation,
+            instance,
+            entry,
         }
-    }
-
-    pub fn wait_device_idle(&self) {
-        // TODO method on VkDevice
-        // unsafe {
-        // self.device
-        //     .device_wait_idle()
-        //     .expect("Failed to wait device idle!")
-        // };
     }
 }

@@ -38,7 +38,7 @@ impl HelloTriangleApp {
             .run(move |event, _, control_flow| match event {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => {
-                        vk_context.wait_device_idle();
+                        vk_context.device.wait_idle();
                         *control_flow = ControlFlow::Exit
                     }
                     _ => (),

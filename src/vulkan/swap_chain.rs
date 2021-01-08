@@ -1,4 +1,7 @@
-use ash::{extensions::khr::Swapchain, vk::{self, SwapchainKHR}};
+use ash::{
+    extensions::khr::Swapchain,
+    vk::{self, SwapchainKHR},
+};
 
 use super::{device::VkDevice, physical_device::VkPhysicalDevice, surface::VkSurface};
 
@@ -41,11 +44,16 @@ impl VkSwapChain {
             .pre_transform(surface_caps.capabilities.current_transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
             .present_mode(present_mode)
-            .clipped(true);      
+            .clipped(true);
 
-        let queue_family_indices = [device.graphics_queue_family, device.presentation_queue_family];
+        let queue_family_indices = [
+            device.graphics_queue_family,
+            device.presentation_queue_family,
+        ];
         if device.graphics_queue_family != device.presentation_queue_family {
-            create_info = create_info.image_sharing_mode(vk::SharingMode::CONCURRENT).queue_family_indices(&queue_family_indices);
+            create_info = create_info
+                .image_sharing_mode(vk::SharingMode::CONCURRENT)
+                .queue_family_indices(&queue_family_indices);
         } else {
             create_info = create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE);
         }
@@ -61,7 +69,7 @@ impl VkSwapChain {
             image_count,
             extension,
             handle,
-            images
+            images,
         }
     }
 }

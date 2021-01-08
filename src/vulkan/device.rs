@@ -66,8 +66,14 @@ impl VkDevice {
             graphics_queue,
             graphics_queue_family,
             presentation_queue,
-            presentation_queue_family
+            presentation_queue_family,
         }
+    }
+
+    pub fn wait_idle(&self) {
+        unsafe {
+            self.handle.device_wait_idle().expect("Failed to wait device idle!")
+        };
     }
 }
 

@@ -12,13 +12,12 @@ use std::{
 };
 
 use super::debug::*;
-use super::settings::VkSettings;
 use super::utils::*;
 
 pub struct VkInstance(ash::Instance);
 
 impl VkInstance {
-    pub fn new(window: &Window, settings: &VkSettings, entry: &ash::Entry) -> VkInstance {
+    pub fn new(window: &Window, entry: &ash::Entry, validation: bool) -> VkInstance {
         let app_name = CString::new("Vulkan Application").unwrap();
         let engine_name = CString::new("No Engine").unwrap();
         let app_info = vk::ApplicationInfo::builder()
@@ -28,14 +27,14 @@ impl VkInstance {
             .engine_version(vk::make_version(0, 0, 1))
             .api_version(vk::make_version(1, 2, 0));
 
-        let extensions = enumerate_extensions(window, settings);
+        let extensions = enumerate_extensions(window, validation);
         let extension_names = coerce_extension_names(&extensions);
 
         let mut instance_create_info = vk::InstanceCreateInfo::builder()
             .application_info(&app_info)
             .enabled_extension_names(&extension_names);
 
-        if settings.validation {
+        if validation {
             check_validation_layer_support(&entry);
             let validation_layers = get_validation_layers();
             let validation_layer_names = coerce_extension_names(&validation_layers);
@@ -76,12 +75,12 @@ fn build_instance(entry: &ash::Entry, info: vk::InstanceCreateInfoBuilder) -> Vk
     VkInstance(instance)
 }
 
-fn enumerate_extensions(window: &Window, settings: &VkSettings) -> Vec<&'static CStr> {
+fn enumerate_extensions(window: &Window, validation: bool) -> Vec<&'static CStr> {
     let window_extensions = ash_window::enumerate_required_extensions(window)
         .expect("Unable to enumerate rrequired window extensions");
     let mut extensions = window_extensions;
 
-    if settings.validation {
+    if validation {
         extensions.push(DebugUtils::name());
     }
 

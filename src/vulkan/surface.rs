@@ -51,7 +51,7 @@ impl VkSurface {
         }
     }
 
-    pub fn get_physical_device_surface_capabilties(
+    pub fn get_physical_device_surface_capabilities(
         &self,
         physical_device: vk::PhysicalDevice,
     ) -> VkSurfaceCapabilities {

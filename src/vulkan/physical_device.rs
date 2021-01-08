@@ -86,7 +86,7 @@ fn create_physical_device(
     let name = coerce_string(&properties.device_name);
     let api_version = VkVersion::parse(properties.api_version);
     let queue_families = get_queue_families(instance, handle);
-    let surface_caps = surface.get_physical_device_surface_capabilties(handle);
+    let surface_caps = surface.get_physical_device_surface_capabilities(handle);
 
     VkPhysicalDevice {
         handle,
@@ -131,14 +131,16 @@ fn rate_device_suitability(
     let mut score = 0i32;
 
     let queue_families = &device.queue_families;
-    if !has_queue_family(queue_families, |family| {
+    let has_graphics_family = has_queue_family(queue_families, |family| {
         family.flags.contains(vk::QueueFlags::GRAPHICS)
-    }) {
+    });
+    if !has_graphics_family {
         return -1;
     }
-    if !has_queue_family(queue_families, |family| {
+    let has_surface_support_family = has_queue_family(queue_families, |family| {
         surface.physical_device_queue_support(device, family.index)
-    }) {
+    });
+    if !has_surface_support_family {
         return -1;
     }
     if device.surface_caps.formats.is_empty() || device.surface_caps.present_modes.is_empty() {
