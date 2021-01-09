@@ -50,3 +50,17 @@ impl VkContext {
         }
     }
 }
+
+impl Drop for VkContext {
+    fn drop(&mut self) {
+        self.swap_chain.cleanup(&self.device);
+        self.device.cleanup();
+        self.surface.cleanup();
+
+        let validation = self.validation.take();
+        if let Some(mut validation) = validation {
+            validation.cleanup();
+        }
+        self.instance.cleanup();
+    }
+}

@@ -25,10 +25,8 @@ impl VkValidation {
             messenger,
         }
     }
-}
 
-impl Drop for VkValidation {
-    fn drop(&mut self) {
+    pub fn cleanup(&mut self) {
         log::debug!("Dropping validation");
         unsafe {
             self.extension

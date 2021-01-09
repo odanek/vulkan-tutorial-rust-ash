@@ -47,10 +47,8 @@ impl VkInstance {
             build_instance(entry, instance_create_info)
         }
     }
-}
 
-impl Drop for VkInstance {
-    fn drop(&mut self) {
+    pub fn cleanup(&mut self) {
         log::debug!("Dropping instance");
         unsafe {
             self.0.destroy_instance(None);

@@ -78,14 +78,12 @@ impl VkSwapChain {
             image_views,
         }
     }
-}
 
-impl Drop for VkSwapChain {
-    fn drop(&mut self) {
-        log::debug!("Dropping image views");
-        // for &view in self.image_views.iter() {
-        //     unsafe { self.device.destroy_image_view(view, None) };
-        // }
+    pub fn cleanup(&mut self, device: &VkDevice) {
+        log::debug!("Dropping swap chain image views");
+        for &view in self.image_views.iter() {
+            unsafe { device.handle.destroy_image_view(view, None) };
+        }
         log::debug!("Dropping swap chain");
         unsafe {
             self.extension.destroy_swapchain(self.handle, None);

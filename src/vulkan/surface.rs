@@ -72,10 +72,8 @@ impl VkSurface {
             }
         }
     }
-}
 
-impl Drop for VkSurface {
-    fn drop(&mut self) {
+    pub fn cleanup(&mut self) {
         log::debug!("Dropping surface");
         unsafe {
             self.extension.destroy_surface(self.handle, None);

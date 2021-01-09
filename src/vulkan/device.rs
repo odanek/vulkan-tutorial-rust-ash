@@ -79,10 +79,8 @@ impl VkDevice {
                 .expect("Failed to wait device idle!")
         };
     }
-}
 
-impl Drop for VkDevice {
-    fn drop(&mut self) {
+    pub fn cleanup(&mut self) {
         log::debug!("Dropping logical device");
         unsafe {
             self.handle.destroy_device(None);
