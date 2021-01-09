@@ -1,11 +1,12 @@
 use ash::{
     extensions::khr::Swapchain,
+    version::DeviceV1_0,
     vk::{self, SwapchainKHR},
 };
 
 use super::{device::VkDevice, physical_device::VkPhysicalDevice, surface::VkSurface};
 
-pub struct VkSwapChain {
+pub struct VkSwapChain {    
     pub format: vk::SurfaceFormatKHR,
     pub present_mode: vk::PresentModeKHR,
     pub swap_extent: vk::Extent2D,
@@ -13,6 +14,7 @@ pub struct VkSwapChain {
     pub extension: Swapchain,
     pub handle: SwapchainKHR,
     pub images: Vec<vk::Image>,
+    pub image_views: Vec<vk::ImageView>,
 }
 
 impl VkSwapChain {
@@ -60,9 +62,12 @@ impl VkSwapChain {
 
         let extension = Swapchain::new(instance, &device.handle);
         let handle = unsafe { extension.create_swapchain(&create_info, None).unwrap() };
-        let images = unsafe { extension.get_swapchain_images(handle).unwrap() };
 
-        VkSwapChain {
+        log::info!("Creating images and image views");
+        let images = unsafe { extension.get_swapchain_images(handle).unwrap() };
+        let image_views = create_image_views(device, &images, format.format);
+
+        VkSwapChain {            
             format,
             present_mode,
             swap_extent,
@@ -70,12 +75,17 @@ impl VkSwapChain {
             extension,
             handle,
             images,
+            image_views,
         }
     }
 }
 
 impl Drop for VkSwapChain {
     fn drop(&mut self) {
+        log::debug!("Dropping image views");
+        // for &view in self.image_views.iter() {
+        //     unsafe { self.device.destroy_image_view(view, None) };
+        // }
         log::debug!("Dropping swap chain");
         unsafe {
             self.extension.destroy_swapchain(self.handle, None);
@@ -129,4 +139,36 @@ fn choose_image_count(capabilities: &vk::SurfaceCapabilitiesKHR) -> u32 {
         preferred = max;
     }
     preferred
+}
+
+fn create_image_views(
+    device: &VkDevice,
+    images: &Vec<vk::Image>,
+    format: vk::Format,
+) -> Vec<vk::ImageView> {
+    images
+        .iter()
+        .map(|&image| create_image_view(device, image, format))
+        .collect::<Vec<_>>()
+}
+
+fn create_image_view(device: &VkDevice, image: vk::Image, format: vk::Format) -> vk::ImageView {
+    let create_info = vk::ImageViewCreateInfo::builder()
+        .image(image)
+        .view_type(vk::ImageViewType::TYPE_2D)
+        .format(format)
+        .components(vk::ComponentMapping {
+            r: vk::ComponentSwizzle::IDENTITY,
+            g: vk::ComponentSwizzle::IDENTITY,
+            b: vk::ComponentSwizzle::IDENTITY,
+            a: vk::ComponentSwizzle::IDENTITY,
+        })
+        .subresource_range(vk::ImageSubresourceRange {
+            aspect_mask: vk::ImageAspectFlags::COLOR,
+            base_mip_level: 0,
+            level_count: 1,
+            base_array_layer: 0,
+            layer_count: 1,
+        });
+    unsafe { device.handle.create_image_view(&create_info, None).unwrap() }
 }

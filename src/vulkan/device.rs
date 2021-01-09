@@ -12,6 +12,7 @@ pub struct VkDevice {
     pub graphics_queue_family: u32,
     pub presentation_queue: vk::Queue,
     pub presentation_queue_family: u32,
+    pub swapchain_image_views: Vec<vk::ImageView>,
 }
 
 impl VkDevice {
@@ -67,12 +68,15 @@ impl VkDevice {
             graphics_queue_family,
             presentation_queue,
             presentation_queue_family,
+            swapchain_image_views: Vec::new()
         }
     }
 
     pub fn wait_idle(&self) {
         unsafe {
-            self.handle.device_wait_idle().expect("Failed to wait device idle!")
+            self.handle
+                .device_wait_idle()
+                .expect("Failed to wait device idle!")
         };
     }
 }
