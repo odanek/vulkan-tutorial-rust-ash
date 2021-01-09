@@ -6,7 +6,7 @@ use ash::{
 
 use super::{device::VkDevice, physical_device::VkPhysicalDevice, surface::VkSurface};
 
-pub struct VkSwapChain {    
+pub struct VkSwapChain {
     pub format: vk::SurfaceFormatKHR,
     pub present_mode: vk::PresentModeKHR,
     pub swap_extent: vk::Extent2D,
@@ -67,7 +67,7 @@ impl VkSwapChain {
         let images = unsafe { extension.get_swapchain_images(handle).unwrap() };
         let image_views = create_image_views(device, &images, format.format);
 
-        VkSwapChain {            
+        VkSwapChain {
             format,
             present_mode,
             swap_extent,
@@ -141,7 +141,7 @@ fn choose_image_count(capabilities: &vk::SurfaceCapabilitiesKHR) -> u32 {
 
 fn create_image_views(
     device: &VkDevice,
-    images: &Vec<vk::Image>,
+    images: &[vk::Image],
     format: vk::Format,
 ) -> Vec<vk::ImageView> {
     images

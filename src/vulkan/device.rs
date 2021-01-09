@@ -68,7 +68,7 @@ impl VkDevice {
             graphics_queue_family,
             presentation_queue,
             presentation_queue_family,
-            swapchain_image_views: Vec::new()
+            swapchain_image_views: Vec::new(),
         }
     }
 

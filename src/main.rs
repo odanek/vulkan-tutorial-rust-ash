@@ -13,7 +13,7 @@ use winit::{
 
 pub struct HelloTriangleApp {
     event_loop: EventLoop<()>,
-    window: Window,
+    _window: Window,
     vk_context: VkContext,
 }
 
@@ -25,13 +25,12 @@ impl HelloTriangleApp {
 
         HelloTriangleApp {
             event_loop,
-            window,
+            _window: window,
             vk_context,
         }
     }
 
     pub fn run(self) {
-        let _ = self.window;
         let vk_context = self.vk_context;
 
         self.event_loop
