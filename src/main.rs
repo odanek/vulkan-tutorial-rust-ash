@@ -64,3 +64,8 @@ fn main() {
     let app = HelloTriangleApp::new(window_size);
     app.run();
 }
+
+// https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct?rq=1
+// https://stevedonovan.github.io/rustifications/2018/08/18/rust-closures-are-hard.html
+// https://github.com/pretzelhammer/rust-blog/blob/master/posts/common-rust-lifetime-misconceptions.md
+// Struct<'a> -> muzu na ni drzet referenci maximalne po 'a, i.e. Struct<'static> -> muzu na ni drzet referenci jak dlouho chci
