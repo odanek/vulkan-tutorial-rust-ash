@@ -40,7 +40,7 @@ impl VkContext {
             &[window_size.width, window_size.height],
         );
 
-        let pipeline = VkPipeline::new(&device);
+        let pipeline = VkPipeline::new(&device, &swap_chain);
 
         VkContext {
             pipeline,
