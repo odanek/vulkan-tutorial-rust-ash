@@ -8,13 +8,13 @@ pub struct VkPipeline {
     pub render_pass: vk::RenderPass,
     pub vertex_shader_module: vk::ShaderModule,
     pub fragment_shader_module: vk::ShaderModule,
-    pub layout: vk::PipelineLayout,    
+    pub layout: vk::PipelineLayout,
 }
 
 impl VkPipeline {
     pub fn new(device: &VkDevice, swap_chain: &VkSwapChain) -> VkPipeline {
         log::info!("Creating render pass");
-        let render_pass = create_render_pass(device, swap_chain, );
+        let render_pass = create_render_pass(device, swap_chain);
 
         log::info!("Creating pipeline");
 
@@ -57,24 +57,24 @@ impl VkPipeline {
             .scissors(&scissors);
 
         let rasterizer_info = vk::PipelineRasterizationStateCreateInfo::builder()
-        .depth_clamp_enable(false)
-        .rasterizer_discard_enable(false)
-        .polygon_mode(vk::PolygonMode::FILL)
-        .line_width(1.0f32)
-        .cull_mode(vk::CullModeFlags::BACK)
-        .front_face(vk::FrontFace::CLOCKWISE)
-        .depth_bias_enable(false)
-        .depth_bias_constant_factor(0.0)
+            .depth_clamp_enable(false)
+            .rasterizer_discard_enable(false)
+            .polygon_mode(vk::PolygonMode::FILL)
+            .line_width(1.0f32)
+            .cull_mode(vk::CullModeFlags::BACK)
+            .front_face(vk::FrontFace::CLOCKWISE)
+            .depth_bias_enable(false)
+            .depth_bias_constant_factor(0.0)
             .depth_bias_clamp(0.0)
             .depth_bias_slope_factor(0.0);
 
         let multisampling_info = vk::PipelineMultisampleStateCreateInfo::builder()
-        .sample_shading_enable(false)
-        .rasterization_samples(vk::SampleCountFlags::TYPE_1)
-        .min_sample_shading(1.0f32)
-        // .sample_masks()
-        .alpha_to_coverage_enable(false)
-        .alpha_to_one_enable(false);
+            .sample_shading_enable(false)
+            .rasterization_samples(vk::SampleCountFlags::TYPE_1)
+            .min_sample_shading(1.0f32)
+            // .sample_masks()
+            .alpha_to_coverage_enable(false)
+            .alpha_to_one_enable(false);
 
         let color_blend_attachment = vk::PipelineColorBlendAttachmentState::builder()
             .color_write_mask(vk::ColorComponentFlags::all())
@@ -95,13 +95,18 @@ impl VkPipeline {
             .blend_constants([0.0, 0.0, 0.0, 0.0]);
 
         let layout_info = vk::PipelineLayoutCreateInfo::builder();
-        let layout = unsafe { device.handle.create_pipeline_layout(&layout_info, None).expect("Unable to create pipeline layout") };
+        let layout = unsafe {
+            device
+                .handle
+                .create_pipeline_layout(&layout_info, None)
+                .expect("Unable to create pipeline layout")
+        };
 
         VkPipeline {
             render_pass,
             vertex_shader_module,
             fragment_shader_module,
-            layout
+            layout,
         }
     }
 
@@ -130,10 +135,7 @@ fn create_shader_stage(
         .build()
 }
 
-fn create_render_pass(
-    device: &VkDevice,
-    swap_chain: &VkSwapChain
-) -> vk::RenderPass {
+fn create_render_pass(device: &VkDevice, swap_chain: &VkSwapChain) -> vk::RenderPass {
     let color_attachment_desc = vk::AttachmentDescription::builder()
         .format(swap_chain.format.format)
         .samples(vk::SampleCountFlags::TYPE_1)
@@ -144,7 +146,7 @@ fn create_render_pass(
         .initial_layout(vk::ImageLayout::UNDEFINED)
         .final_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
         .build();
-    
+
     let attachment_descs = [color_attachment_desc];
 
     let color_attachment_ref = vk::AttachmentReference::builder()
@@ -164,5 +166,9 @@ fn create_render_pass(
         .subpasses(&subpass_descs)
         .build();
 
-    unsafe { device.create_render_pass(&render_pass_info, None).expect("Unable to create render pass") }
+    unsafe {
+        device
+            .create_render_pass(&render_pass_info, None)
+            .expect("Unable to create render pass")
+    }
 }
