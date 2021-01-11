@@ -5,6 +5,7 @@ mod instance;
 mod physical_device;
 mod pipeline;
 mod queue_family;
+mod render_pass;
 mod settings;
 mod shader;
 mod surface;

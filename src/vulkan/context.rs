@@ -4,11 +4,13 @@ use ash::Entry;
 
 use super::{
     debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice,
-    pipeline::VkPipeline, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain,
+    pipeline::VkPipeline, render_pass::VkRenderPass, settings::VkSettings, surface::VkSurface,
+    swap_chain::VkSwapChain,
 };
 
 pub struct VkContext {
     pub pipeline: VkPipeline,
+    pub render_pass: VkRenderPass,
     pub swap_chain: VkSwapChain,
     pub device: VkDevice,
     pub physical_device: VkPhysicalDevice,
@@ -40,10 +42,12 @@ impl VkContext {
             &[window_size.width, window_size.height],
         );
 
-        let pipeline = VkPipeline::new(&device, &swap_chain);
+        let render_pass = VkRenderPass::new(&device, &swap_chain);
+        let pipeline = VkPipeline::new(&device, &swap_chain, &render_pass);
 
         VkContext {
             pipeline,
+            render_pass,
             swap_chain,
             device,
             physical_device,
@@ -58,6 +62,7 @@ impl VkContext {
 impl Drop for VkContext {
     fn drop(&mut self) {
         self.pipeline.cleanup(&self.device);
+        self.render_pass.cleanup(&self.device);
         self.swap_chain.cleanup(&self.device);
         self.device.cleanup();
         self.surface.cleanup();

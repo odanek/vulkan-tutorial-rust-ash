@@ -2,20 +2,24 @@ use std::ffi::CString;
 
 use ash::{version::DeviceV1_0, vk};
 
-use super::{device::VkDevice, shader::read_shader_from_file, swap_chain::VkSwapChain};
+use super::{
+    device::VkDevice, render_pass::VkRenderPass, shader::read_shader_from_file,
+    swap_chain::VkSwapChain,
+};
 
 pub struct VkPipeline {
-    pub render_pass: vk::RenderPass,
     pub vertex_shader_module: vk::ShaderModule,
     pub fragment_shader_module: vk::ShaderModule,
     pub layout: vk::PipelineLayout,
+    pub pipeline: vk::Pipeline,
 }
 
 impl VkPipeline {
-    pub fn new(device: &VkDevice, swap_chain: &VkSwapChain) -> VkPipeline {
-        log::info!("Creating render pass");
-        let render_pass = create_render_pass(device, swap_chain);
-
+    pub fn new(
+        device: &VkDevice,
+        swap_chain: &VkSwapChain,
+        render_pass: &VkRenderPass,
+    ) -> VkPipeline {
         log::info!("Creating pipeline");
 
         let vertex_shader_module = read_shader_from_file("shader/vert.spv", device);
@@ -102,11 +106,31 @@ impl VkPipeline {
                 .expect("Unable to create pipeline layout")
         };
 
+        let pipeline_info = vk::GraphicsPipelineCreateInfo::builder()
+            .stages(&shader_stages)
+            .vertex_input_state(&vertex_input_info)
+            .input_assembly_state(&input_assembly)
+            .viewport_state(&viewport_info)
+            .rasterization_state(&rasterizer_info)
+            .multisample_state(&multisampling_info)
+            .color_blend_state(&color_blending_info)
+            .layout(layout)
+            .render_pass(render_pass.handle)
+            .subpass(0)
+            .build();
+        let pipeline_infos = [pipeline_info];
+
+        let pipeline = unsafe {
+            device
+                .create_graphics_pipelines(vk::PipelineCache::null(), &pipeline_infos, None)
+                .unwrap()[0]
+        };
+
         VkPipeline {
-            render_pass,
             vertex_shader_module,
             fragment_shader_module,
             layout,
+            pipeline,
         }
     }
 
@@ -115,10 +139,10 @@ impl VkPipeline {
 
         let handle = &device.handle;
         unsafe {
+            handle.destroy_pipeline(self.pipeline, None);
             handle.destroy_pipeline_layout(self.layout, None);
             handle.destroy_shader_module(self.vertex_shader_module, None);
             handle.destroy_shader_module(self.fragment_shader_module, None);
-            handle.destroy_render_pass(self.render_pass, None);
         }
     }
 }
@@ -133,42 +157,4 @@ fn create_shader_stage(
         .module(module)
         .name(&entry_point)
         .build()
-}
-
-fn create_render_pass(device: &VkDevice, swap_chain: &VkSwapChain) -> vk::RenderPass {
-    let color_attachment_desc = vk::AttachmentDescription::builder()
-        .format(swap_chain.format.format)
-        .samples(vk::SampleCountFlags::TYPE_1)
-        .load_op(vk::AttachmentLoadOp::CLEAR)
-        .store_op(vk::AttachmentStoreOp::STORE)
-        .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
-        .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-        .initial_layout(vk::ImageLayout::UNDEFINED)
-        .final_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-        .build();
-
-    let attachment_descs = [color_attachment_desc];
-
-    let color_attachment_ref = vk::AttachmentReference::builder()
-        .attachment(0)
-        .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-        .build();
-    let color_attachment_refs = [color_attachment_ref];
-
-    let subpass_desc = vk::SubpassDescription::builder()
-        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-        .color_attachments(&color_attachment_refs)
-        .build();
-    let subpass_descs = [subpass_desc];
-
-    let render_pass_info = vk::RenderPassCreateInfo::builder()
-        .attachments(&attachment_descs)
-        .subpasses(&subpass_descs)
-        .build();
-
-    unsafe {
-        device
-            .create_render_pass(&render_pass_info, None)
-            .expect("Unable to create render pass")
-    }
 }
