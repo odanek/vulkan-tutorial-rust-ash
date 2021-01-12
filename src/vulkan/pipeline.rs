@@ -123,7 +123,7 @@ impl VkPipeline {
         let pipeline = unsafe {
             device
                 .create_graphics_pipelines(vk::PipelineCache::null(), &pipeline_infos, None)
-                .unwrap()[0]
+                .expect("Unable t ocreate graphics pipelines")[0]
         };
 
         VkPipeline {
