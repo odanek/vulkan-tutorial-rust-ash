@@ -4,7 +4,10 @@ use ash::{
     vk::{self, SwapchainKHR},
 };
 
-use super::{device::VkDevice, physical_device::VkPhysicalDevice, surface::VkSurface};
+use super::{
+    device::VkDevice, physical_device::VkPhysicalDevice, render_pass::VkRenderPass,
+    surface::VkSurface,
+};
 
 pub struct VkSwapChain {
     pub format: vk::SurfaceFormatKHR,
@@ -15,6 +18,7 @@ pub struct VkSwapChain {
     pub handle: SwapchainKHR,
     pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
+    pub framebuffers: Vec<vk::Framebuffer>,
 }
 
 impl VkSwapChain {
@@ -65,7 +69,7 @@ impl VkSwapChain {
 
         log::info!("Creating images and image views");
         let images = unsafe { extension.get_swapchain_images(handle).unwrap() };
-        let image_views = create_image_views(device, &images, format.format);
+        let image_views = create_image_views(device, &images, format.format);        
 
         VkSwapChain {
             format,
@@ -76,7 +80,28 @@ impl VkSwapChain {
             handle,
             images,
             image_views,
+            framebuffers: Vec::new()
         }
+    }
+
+    pub fn create_frame_buffers(&mut self, device: &VkDevice, render_pass: &VkRenderPass) {
+        log::info!("Creating framebuffers");
+
+        self.framebuffers = self
+            .image_views
+            .iter()
+            .map(|view| [*view])
+            .map(|attachments| {
+                let framebuffer_info = vk::FramebufferCreateInfo::builder()
+                    .render_pass(render_pass.handle)
+                    .attachments(&attachments)
+                    .width(self.swap_extent.width)
+                    .height(self.swap_extent.height)
+                    .layers(1)
+                    .build();
+                unsafe { device.handle.create_framebuffer(&framebuffer_info, None).unwrap() }
+            })
+            .collect::<Vec<_>>();
     }
 
     pub fn cleanup(&mut self, device: &VkDevice) {
@@ -88,6 +113,14 @@ impl VkSwapChain {
         unsafe {
             self.extension.destroy_swapchain(self.handle, None);
         }
+    }
+
+    pub fn cleanup_framebuffers(&mut self, device: &VkDevice) {
+        log::debug!("Dropping framebuffers");
+        for &buffer in self.framebuffers.iter() {
+            unsafe { device.handle.destroy_framebuffer(buffer, None) };
+        }
+        self.framebuffers.clear();
     }
 }
 

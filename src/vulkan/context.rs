@@ -34,7 +34,7 @@ impl VkContext {
         let device = VkDevice::new(&instance, &physical_device, &surface);
 
         let window_size = window.inner_size();
-        let swap_chain = VkSwapChain::new(
+        let mut swap_chain = VkSwapChain::new(
             &instance,
             &physical_device,
             &device,
@@ -44,6 +44,8 @@ impl VkContext {
 
         let render_pass = VkRenderPass::new(&device, &swap_chain);
         let pipeline = VkPipeline::new(&device, &swap_chain, &render_pass);
+        
+        swap_chain.create_frame_buffers(&device, &render_pass);
 
         VkContext {
             pipeline,
@@ -61,6 +63,7 @@ impl VkContext {
 
 impl Drop for VkContext {
     fn drop(&mut self) {
+        self.swap_chain.cleanup_framebuffers(&self.device);
         self.pipeline.cleanup(&self.device);
         self.render_pass.cleanup(&self.device);
         self.swap_chain.cleanup(&self.device);
