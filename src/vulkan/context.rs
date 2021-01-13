@@ -2,13 +2,10 @@ use winit::window::Window;
 
 use ash::Entry;
 
-use super::{
-    debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice,
-    pipeline::VkPipeline, render_pass::VkRenderPass, settings::VkSettings, surface::VkSurface,
-    swap_chain::VkSwapChain,
-};
+use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain};
 
 pub struct VkContext {
+    pub command_pool: VkCommandPool,
     pub pipeline: VkPipeline,
     pub render_pass: VkRenderPass,
     pub swap_chain: VkSwapChain,
@@ -47,7 +44,10 @@ impl VkContext {
         
         swap_chain.create_frame_buffers(&device, &render_pass);
 
+        let command_pool = VkCommandPool::new(&device);
+
         VkContext {
+            command_pool,
             pipeline,
             render_pass,
             swap_chain,
@@ -63,6 +63,7 @@ impl VkContext {
 
 impl Drop for VkContext {
     fn drop(&mut self) {
+        self.command_pool.cleanup(&self.device);
         self.swap_chain.cleanup_framebuffers(&self.device);
         self.pipeline.cleanup(&self.device);
         self.render_pass.cleanup(&self.device);

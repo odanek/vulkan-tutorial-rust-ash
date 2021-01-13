@@ -17,7 +17,7 @@ impl VkValidation {
         let messenger = unsafe {
             extension
                 .create_debug_utils_messenger(&messanger_ci, None)
-                .expect("Debug Utils Callback")
+                .expect("Unable to create debug utils messenger")
         };
 
         VkValidation {
