@@ -65,11 +65,19 @@ impl VkSwapChain {
         }
 
         let extension = Swapchain::new(instance, &device.handle);
-        let handle = unsafe { extension.create_swapchain(&create_info, None).expect("Unable to create swap chain") };
+        let handle = unsafe {
+            extension
+                .create_swapchain(&create_info, None)
+                .expect("Unable to create swap chain")
+        };
 
         log::info!("Creating images and image views");
-        let images = unsafe { extension.get_swapchain_images(handle).expect("Unable to get swap chain images") };
-        let image_views = create_image_views(device, &images, format.format);        
+        let images = unsafe {
+            extension
+                .get_swapchain_images(handle)
+                .expect("Unable to get swap chain images")
+        };
+        let image_views = create_image_views(device, &images, format.format);
 
         VkSwapChain {
             format,
@@ -80,7 +88,7 @@ impl VkSwapChain {
             handle,
             images,
             image_views,
-            framebuffers: Vec::new()
+            framebuffers: Vec::new(),
         }
     }
 
@@ -99,7 +107,12 @@ impl VkSwapChain {
                     .height(self.swap_extent.height)
                     .layers(1)
                     .build();
-                unsafe { device.handle.create_framebuffer(&framebuffer_info, None).expect("Unable to create framebuffer") }
+                unsafe {
+                    device
+                        .handle
+                        .create_framebuffer(&framebuffer_info, None)
+                        .expect("Unable to create framebuffer")
+                }
             })
             .collect::<Vec<_>>();
     }
@@ -201,5 +214,10 @@ fn create_image_view(device: &VkDevice, image: vk::Image, format: vk::Format) ->
             base_array_layer: 0,
             layer_count: 1,
         });
-    unsafe { device.handle.create_image_view(&create_info, None).expect("Unable to create image view") }
+    unsafe {
+        device
+            .handle
+            .create_image_view(&create_info, None)
+            .expect("Unable to create image view")
+    }
 }

@@ -30,7 +30,10 @@ impl VkSurface {
         window: &winit::window::Window,
     ) -> VkSurface {
         let extension = Surface::new(entry, instance);
-        let handle = unsafe { ash_window::create_surface(entry, instance, window, None).expect("Unable to create surface") };
+        let handle = unsafe {
+            ash_window::create_surface(entry, instance, window, None)
+                .expect("Unable to create surface")
+        };
 
         VkSurface { extension, handle }
     }
