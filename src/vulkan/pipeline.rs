@@ -8,10 +8,10 @@ use super::{
 };
 
 pub struct VkPipeline {
+    pub handle: vk::Pipeline,
     pub vertex_shader_module: vk::ShaderModule,
     pub fragment_shader_module: vk::ShaderModule,
     pub layout: vk::PipelineLayout,
-    pub pipeline: vk::Pipeline,
 }
 
 impl VkPipeline {
@@ -120,7 +120,7 @@ impl VkPipeline {
             .build();
         let pipeline_infos = [pipeline_info];
 
-        let pipeline = unsafe {
+        let handle = unsafe {
             device
                 .create_graphics_pipelines(vk::PipelineCache::null(), &pipeline_infos, None)
                 .expect("Unable t ocreate graphics pipelines")[0]
@@ -130,7 +130,7 @@ impl VkPipeline {
             vertex_shader_module,
             fragment_shader_module,
             layout,
-            pipeline,
+            handle,
         }
     }
 
@@ -139,7 +139,7 @@ impl VkPipeline {
 
         let handle = &device.handle;
         unsafe {
-            handle.destroy_pipeline(self.pipeline, None);
+            handle.destroy_pipeline(self.handle, None);
             handle.destroy_pipeline_layout(self.layout, None);
             handle.destroy_shader_module(self.vertex_shader_module, None);
             handle.destroy_shader_module(self.fragment_shader_module, None);

@@ -22,6 +22,7 @@ impl HelloTriangleApp {
         let (event_loop, window) = HelloTriangleApp::init_window(&window_size);
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
+        vk_context.record_commands();
 
         HelloTriangleApp {
             event_loop,

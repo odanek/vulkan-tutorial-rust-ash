@@ -1,6 +1,6 @@
 use winit::window::Window;
 
-use ash::Entry;
+use ash::{version::DeviceV1_0, vk, Entry};
 
 use super::{
     command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance,
@@ -61,6 +61,55 @@ impl VkContext {
             validation,
             instance,
             entry,
+        }
+    }
+
+    pub fn record_commands(&self) {
+        let device = &self.device.handle;
+
+        for (index, &buffer) in self.command_pool.buffers.iter().enumerate() {
+            let command_begin_info = vk::CommandBufferBeginInfo::builder();
+            unsafe {
+                device
+                    .begin_command_buffer(buffer, &command_begin_info)
+                    .expect("Unable to begin command buffer")
+            };
+
+            let clear_values = [vk::ClearValue {
+                color: vk::ClearColorValue {
+                    float32: [0.0, 0.0, 0.0, 1.0],
+                },
+            }];
+
+            let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+                .render_pass(self.render_pass.handle)
+                .framebuffer(self.swap_chain.framebuffers[index])
+                .render_area(vk::Rect2D {
+                    offset: vk::Offset2D { x: 0, y: 0 },
+                    extent: self.swap_chain.swap_extent,
+                })
+                .clear_values(&clear_values);
+
+            unsafe {
+                device.cmd_begin_render_pass(
+                    buffer,
+                    &render_pass_begin_info,
+                    vk::SubpassContents::INLINE,
+                );
+
+                device.cmd_bind_pipeline(
+                    buffer,
+                    vk::PipelineBindPoint::GRAPHICS,
+                    self.pipeline.handle,
+                );
+                device.cmd_draw(buffer, 3, 1, 0, 0);
+
+                device.cmd_end_render_pass(buffer);
+
+                device
+                    .end_command_buffer(buffer)
+                    .expect("Failed to record end of command buffer");
+            };
         }
     }
 }
