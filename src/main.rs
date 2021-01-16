@@ -43,6 +43,9 @@ impl HelloTriangleApp {
                     }
                     _ => (),
                 },
+                Event::RedrawRequested(_window_id) => {
+                    
+                },
                 _ => (),
             });
     }

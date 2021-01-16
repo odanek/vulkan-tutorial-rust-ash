@@ -2,13 +2,12 @@ use winit::window::Window;
 
 use ash::{version::DeviceV1_0, vk, Entry};
 
-use super::{
-    command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance,
-    physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass,
-    settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain,
-};
+use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass, semaphore::VkSemaphore, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain};
 
 pub struct VkContext {
+    pub image_available_semaphore: VkSemaphore,
+    pub render_finished_semaphore: VkSemaphore,
+
     pub command_pool: VkCommandPool,
     pub pipeline: VkPipeline,
     pub render_pass: VkRenderPass,
@@ -50,7 +49,13 @@ impl VkContext {
 
         let command_pool = VkCommandPool::new(&device, swap_chain.framebuffers.len() as u32);
 
+        let image_available_semaphore = VkSemaphore::new(&device);
+        let render_finished_semaphore = VkSemaphore::new(&device);
+
         VkContext {
+            image_available_semaphore,
+            render_finished_semaphore,
+
             command_pool,
             pipeline,
             render_pass,
@@ -116,6 +121,9 @@ impl VkContext {
 
 impl Drop for VkContext {
     fn drop(&mut self) {
+        self.image_available_semaphore.cleanup(&self.device);
+        self.render_finished_semaphore.cleanup(&self.device);
+
         self.command_pool.cleanup(&self.device);
         self.swap_chain.cleanup_framebuffers(&self.device);
         self.pipeline.cleanup(&self.device);

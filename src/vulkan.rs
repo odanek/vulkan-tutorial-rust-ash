@@ -7,6 +7,7 @@ mod physical_device;
 mod pipeline;
 mod queue_family;
 mod render_pass;
+mod semaphore;
 mod settings;
 mod shader;
 mod surface;
