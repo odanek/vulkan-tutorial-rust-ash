@@ -6,7 +6,7 @@ use ash::{
 
 use super::{
     device::VkDevice, physical_device::VkPhysicalDevice, render_pass::VkRenderPass,
-    surface::VkSurface,
+    semaphore::VkSemaphore, surface::VkSurface,
 };
 
 pub struct VkSwapChain {
@@ -117,7 +117,21 @@ impl VkSwapChain {
             .collect::<Vec<_>>();
     }
 
-    pub fn cleanup(&mut self, device: &VkDevice) {
+    pub fn acquire_next_image(&self, semaphore: &VkSemaphore) -> u32 {
+        unsafe {
+            self.extension
+                .acquire_next_image(
+                    self.handle,
+                    std::u64::MAX,
+                    semaphore.handle,
+                    vk::Fence::null(),
+                )
+                .expect("Unable to acquire next image")
+                .0
+        }
+    }
+
+    pub fn cleanup(&self, device: &VkDevice) {
         log::debug!("Dropping swap chain image views");
         for &view in self.image_views.iter() {
             unsafe { device.handle.destroy_image_view(view, None) };
