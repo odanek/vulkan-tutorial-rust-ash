@@ -1,7 +1,9 @@
-use crate::{app::App, vulkan::{VkContext, VkSettings}};
-use winit::{
-    window::Window,
+use crate::{
+    app::App,
+    vulkan::{VkContext, VkSettings},
 };
+use ash::{version::DeviceV1_0, vk};
+use winit::window::Window;
 
 pub struct HelloTriangleApp {
     vk_context: VkContext,
@@ -22,13 +24,31 @@ impl App for HelloTriangleApp {
         self.vk_context.device.wait_idle();
     }
 
-    fn update(&mut self) {
-    }
+    fn update(&mut self) {}
 
     fn draw_frame(&mut self) {
         log::info!("Drawing");
 
         let context = &self.vk_context;
-        context.swap_chain.acquire_next_image(&context.image_available_semaphore);
+        let device = &context.device.handle;
+
+        let image_index = context
+            .swap_chain
+            .acquire_next_image(&context.image_available_semaphore);
+
+        let wait_semaphores = [context.image_available_semaphore.handle];
+        let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+        let command_buffers = [context.command_pool.buffers[image_index as usize]];
+        let signal_semaphores = [context.render_finished_semaphore.handle];
+        let submit_info = vk::SubmitInfo::builder()
+            .wait_semaphores(&wait_semaphores)
+            .wait_dst_stage_mask(&wait_stages)
+            .command_buffers(&command_buffers)
+            .signal_semaphores(&signal_semaphores);
+        let infos = [submit_info.build()];
+
+        unsafe {
+            device.queue_submit(context.device.graphics_queue, &infos, vk::Fence::null()).expect("Unable to submit queue")
+        };
     }
 }
