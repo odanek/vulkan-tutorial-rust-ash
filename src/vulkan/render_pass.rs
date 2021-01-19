@@ -35,9 +35,20 @@ impl VkRenderPass {
             .build();
         let subpass_descs = [subpass_desc];
 
+        let subpass_dep = vk::SubpassDependency::builder()
+            .src_subpass(vk::SUBPASS_EXTERNAL)
+            .dst_subpass(0)
+            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .src_access_mask(vk::AccessFlags::empty())
+            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+            .build();
+        let subpass_deps = [subpass_dep];
+
         let render_pass_info = vk::RenderPassCreateInfo::builder()
             .attachments(&attachment_descs)
             .subpasses(&subpass_descs)
+            .dependencies(&subpass_deps)
             .build();
 
         let handle = unsafe {

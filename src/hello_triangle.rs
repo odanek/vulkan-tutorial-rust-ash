@@ -48,7 +48,22 @@ impl App for HelloTriangleApp {
         let infos = [submit_info.build()];
 
         unsafe {
-            device.queue_submit(context.device.graphics_queue, &infos, vk::Fence::null()).expect("Unable to submit queue")
+            device
+                .queue_submit(context.device.graphics_queue, &infos, vk::Fence::null())
+                .expect("Unable to submit queue")
+        };
+
+        let swapchains = [context.swap_chain.handle];
+        let images_indices = [image_index];
+
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&signal_semaphores)
+            .swapchains(&swapchains)
+            .image_indices(&images_indices)
+            .build();
+
+        let _result = unsafe {
+            context.swap_chain.extension.queue_present(context.device.presentation_queue, &present_info)
         };
     }
 }
