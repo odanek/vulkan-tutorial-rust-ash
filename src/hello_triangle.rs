@@ -29,17 +29,18 @@ impl App for HelloTriangleApp {
     fn draw_frame(&mut self) {
         log::info!("Drawing");
 
-        let context = &self.vk_context;
+        let context = &mut self.vk_context;
+        let current_frame = context.current_frame;
         let device = &context.device.handle;
 
         let image_index = context
             .swap_chain
-            .acquire_next_image(&context.image_available_semaphore);
+            .acquire_next_image(&context.image_available_semaphore[current_frame]);
 
-        let wait_semaphores = [context.image_available_semaphore.handle];
+        let wait_semaphores = [context.image_available_semaphore[current_frame].handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let command_buffers = [context.command_pool.buffers[image_index as usize]];
-        let signal_semaphores = [context.render_finished_semaphore.handle];
+        let signal_semaphores = [context.render_finished_semaphore[current_frame].handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)
             .wait_dst_stage_mask(&wait_stages)
@@ -65,5 +66,7 @@ impl App for HelloTriangleApp {
         let _result = unsafe {
             context.swap_chain.extension.queue_present(context.device.presentation_queue, &present_info)
         };
+
+        context.current_frame = (context.current_frame + 1) % context.max_frames_in_flight;
     }
 }

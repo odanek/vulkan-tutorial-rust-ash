@@ -2,11 +2,18 @@ use winit::window::Window;
 
 use ash::{version::DeviceV1_0, vk, Entry};
 
-use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass, semaphore::VkSemaphore, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain};
+use super::{
+    command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance,
+    physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass,
+    semaphore::VkSemaphore, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain,
+};
 
 pub struct VkContext {
-    pub image_available_semaphore: VkSemaphore,
-    pub render_finished_semaphore: VkSemaphore,
+    pub max_frames_in_flight: usize,
+    pub current_frame: usize,
+
+    pub image_available_semaphore: Vec<VkSemaphore>,
+    pub render_finished_semaphore: Vec<VkSemaphore>,
 
     pub command_pool: VkCommandPool,
     pub pipeline: VkPipeline,
@@ -49,10 +56,14 @@ impl VkContext {
 
         let command_pool = VkCommandPool::new(&device, swap_chain.framebuffers.len() as u32);
 
-        let image_available_semaphore = VkSemaphore::new(&device);
-        let render_finished_semaphore = VkSemaphore::new(&device);
+        let max_frames_in_flight = 2usize;
+        let image_available_semaphore = create_semaphores(&device, max_frames_in_flight);
+        let render_finished_semaphore = create_semaphores(&device, max_frames_in_flight);
 
         VkContext {
+            max_frames_in_flight,
+            current_frame: 0,
+
             image_available_semaphore,
             render_finished_semaphore,
 
@@ -121,8 +132,12 @@ impl VkContext {
 
 impl Drop for VkContext {
     fn drop(&mut self) {
-        self.image_available_semaphore.cleanup(&self.device);
-        self.render_finished_semaphore.cleanup(&self.device);
+        self.image_available_semaphore
+            .iter()
+            .for_each(|semaphore| semaphore.cleanup(&self.device));
+        self.render_finished_semaphore
+            .iter()
+            .for_each(|semaphore| semaphore.cleanup(&self.device));
 
         self.command_pool.cleanup(&self.device);
         self.swap_chain.cleanup_framebuffers(&self.device);
@@ -138,4 +153,10 @@ impl Drop for VkContext {
         }
         self.instance.cleanup();
     }
+}
+
+fn create_semaphores(device: &VkDevice, count: usize) -> Vec<VkSemaphore> {
+    (0..count)
+        .map(|_| VkSemaphore::new(device))
+        .collect::<Vec<_>>()
 }
