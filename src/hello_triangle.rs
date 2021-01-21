@@ -32,6 +32,13 @@ impl App for HelloTriangleApp {
         let context = &mut self.vk_context;
         let current_frame = context.current_frame;
         let device = &context.device.handle;
+        let fence = context.in_flight_fences[current_frame].handle;
+
+        unsafe {
+            let fences = [fence];
+            device.wait_for_fences(&fences, true, std::u64::MAX).expect("Waiting for fence failed");
+            device.reset_fences(&fences).expect("Fence reset failed");
+        }
 
         let image_index = context
             .swap_chain
@@ -50,7 +57,7 @@ impl App for HelloTriangleApp {
 
         unsafe {
             device
-                .queue_submit(context.device.graphics_queue, &infos, vk::Fence::null())
+                .queue_submit(context.device.graphics_queue, &infos, context.in_flight_fences[current_frame].handle)
                 .expect("Unable to submit queue")
         };
 

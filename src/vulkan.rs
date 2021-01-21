@@ -2,6 +2,7 @@ mod command;
 mod context;
 mod debug;
 mod device;
+mod fence;
 mod instance;
 mod physical_device;
 mod pipeline;

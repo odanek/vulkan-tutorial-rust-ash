@@ -2,11 +2,7 @@ use winit::window::Window;
 
 use ash::{version::DeviceV1_0, vk, Entry};
 
-use super::{
-    command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance,
-    physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass,
-    semaphore::VkSemaphore, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain,
-};
+use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, fence::VkFence, instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass, semaphore::VkSemaphore, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain};
 
 pub struct VkContext {
     pub max_frames_in_flight: usize,
@@ -14,6 +10,7 @@ pub struct VkContext {
 
     pub image_available_semaphore: Vec<VkSemaphore>,
     pub render_finished_semaphore: Vec<VkSemaphore>,
+    pub in_flight_fences: Vec<VkFence>,
 
     pub command_pool: VkCommandPool,
     pub pipeline: VkPipeline,
@@ -59,6 +56,7 @@ impl VkContext {
         let max_frames_in_flight = 2usize;
         let image_available_semaphore = create_semaphores(&device, max_frames_in_flight);
         let render_finished_semaphore = create_semaphores(&device, max_frames_in_flight);
+        let in_flight_fences = create_fences(&device, max_frames_in_flight);
 
         VkContext {
             max_frames_in_flight,
@@ -66,6 +64,7 @@ impl VkContext {
 
             image_available_semaphore,
             render_finished_semaphore,
+            in_flight_fences,
 
             command_pool,
             pipeline,
@@ -138,6 +137,9 @@ impl Drop for VkContext {
         self.render_finished_semaphore
             .iter()
             .for_each(|semaphore| semaphore.cleanup(&self.device));
+        self.in_flight_fences
+            .iter()
+            .for_each(|fence| fence.cleanup(&self.device));
 
         self.command_pool.cleanup(&self.device);
         self.swap_chain.cleanup_framebuffers(&self.device);
@@ -158,5 +160,11 @@ impl Drop for VkContext {
 fn create_semaphores(device: &VkDevice, count: usize) -> Vec<VkSemaphore> {
     (0..count)
         .map(|_| VkSemaphore::new(device))
+        .collect::<Vec<_>>()
+}
+
+fn create_fences(device: &VkDevice, count: usize) -> Vec<VkFence> {
+    (0..count)
+        .map(|_| VkFence::new(device))
         .collect::<Vec<_>>()
 }
