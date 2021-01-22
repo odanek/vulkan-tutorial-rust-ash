@@ -2,6 +2,7 @@ use ash::{version::DeviceV1_0, vk};
 
 use super::device::VkDevice;
 
+#[derive(Copy, Clone)]
 pub struct VkFence {
     pub handle: vk::Fence,
 }

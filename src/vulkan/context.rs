@@ -2,7 +2,12 @@ use winit::window::Window;
 
 use ash::{version::DeviceV1_0, vk, Entry};
 
-use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, fence::VkFence, instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass, semaphore::VkSemaphore, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain};
+use super::{
+    command::VkCommandPool, debug::VkValidation, device::VkDevice, fence::VkFence,
+    instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline,
+    render_pass::VkRenderPass, semaphore::VkSemaphore, settings::VkSettings, surface::VkSurface,
+    swap_chain::VkSwapChain,
+};
 
 pub struct VkContext {
     pub max_frames_in_flight: usize,
@@ -11,6 +16,7 @@ pub struct VkContext {
     pub image_available_semaphore: Vec<VkSemaphore>,
     pub render_finished_semaphore: Vec<VkSemaphore>,
     pub in_flight_fences: Vec<VkFence>,
+    pub images_in_flight: Vec<Option<VkFence>>,
 
     pub command_pool: VkCommandPool,
     pub pipeline: VkPipeline,
@@ -57,6 +63,9 @@ impl VkContext {
         let image_available_semaphore = create_semaphores(&device, max_frames_in_flight);
         let render_finished_semaphore = create_semaphores(&device, max_frames_in_flight);
         let in_flight_fences = create_fences(&device, max_frames_in_flight);
+        let images_in_flight: Vec<Option<VkFence>> = (0..swap_chain.images.len())
+            .map(|_| None)
+            .collect::<Vec<Option<VkFence>>>();
 
         VkContext {
             max_frames_in_flight,
@@ -65,6 +74,7 @@ impl VkContext {
             image_available_semaphore,
             render_finished_semaphore,
             in_flight_fences,
+            images_in_flight,
 
             command_pool,
             pipeline,
@@ -164,7 +174,5 @@ fn create_semaphores(device: &VkDevice, count: usize) -> Vec<VkSemaphore> {
 }
 
 fn create_fences(device: &VkDevice, count: usize) -> Vec<VkFence> {
-    (0..count)
-        .map(|_| VkFence::new(device))
-        .collect::<Vec<_>>()
+    (0..count).map(|_| VkFence::new(device)).collect::<Vec<_>>()
 }

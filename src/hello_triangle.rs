@@ -32,21 +32,35 @@ impl App for HelloTriangleApp {
         let context = &mut self.vk_context;
         let current_frame = context.current_frame;
         let device = &context.device.handle;
-        let fence = context.in_flight_fences[current_frame].handle;
+        let fence = context.in_flight_fences[current_frame];
 
         unsafe {
-            let fences = [fence];
-            device.wait_for_fences(&fences, true, std::u64::MAX).expect("Waiting for fence failed");
+            let fences = [fence.handle];
+            device
+                .wait_for_fences(&fences, true, std::u64::MAX)
+                .expect("Waiting for fence failed");
             device.reset_fences(&fences).expect("Fence reset failed");
         }
 
         let image_index = context
             .swap_chain
-            .acquire_next_image(&context.image_available_semaphore[current_frame]);
+            .acquire_next_image(&context.image_available_semaphore[current_frame])
+            as usize;
+
+        if let Some(fence) = context.images_in_flight[image_index] {
+            unsafe {
+                let fences = [fence.handle];
+                device
+                    .wait_for_fences(&fences, true, std::u64::MAX)
+                    .expect("Waiting for fence failed");
+            }
+        }
+
+        context.images_in_flight[image_index] = Some(fence);
 
         let wait_semaphores = [context.image_available_semaphore[current_frame].handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-        let command_buffers = [context.command_pool.buffers[image_index as usize]];
+        let command_buffers = [context.command_pool.buffers[image_index]];
         let signal_semaphores = [context.render_finished_semaphore[current_frame].handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)
@@ -57,12 +71,16 @@ impl App for HelloTriangleApp {
 
         unsafe {
             device
-                .queue_submit(context.device.graphics_queue, &infos, context.in_flight_fences[current_frame].handle)
+                .queue_submit(
+                    context.device.graphics_queue,
+                    &infos,
+                    context.in_flight_fences[current_frame].handle,
+                )
                 .expect("Unable to submit queue")
         };
 
         let swapchains = [context.swap_chain.handle];
-        let images_indices = [image_index];
+        let images_indices = [image_index as u32];
 
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(&signal_semaphores)
@@ -71,7 +89,10 @@ impl App for HelloTriangleApp {
             .build();
 
         let _result = unsafe {
-            context.swap_chain.extension.queue_present(context.device.presentation_queue, &present_info)
+            context
+                .swap_chain
+                .extension
+                .queue_present(context.device.presentation_queue, &present_info)
         };
 
         context.current_frame = (context.current_frame + 1) % context.max_frames_in_flight;
