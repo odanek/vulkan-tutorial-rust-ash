@@ -38,8 +38,7 @@ impl App for HelloTriangleApp {
             let fences = [fence.handle];
             device
                 .wait_for_fences(&fences, true, std::u64::MAX)
-                .expect("Waiting for fence failed");
-            device.reset_fences(&fences).expect("Fence reset failed");
+                .expect("Waiting for fence failed");            
         }
 
         let image_index = context
@@ -70,11 +69,13 @@ impl App for HelloTriangleApp {
         let infos = [submit_info.build()];
 
         unsafe {
+            let fences = [fence.handle];
+            device.reset_fences(&fences).expect("Fence reset failed");
             device
                 .queue_submit(
                     context.device.graphics_queue,
                     &infos,
-                    context.in_flight_fences[current_frame].handle,
+                    fence.handle,
                 )
                 .expect("Unable to submit queue")
         };
