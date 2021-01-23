@@ -14,9 +14,14 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+#[cfg(debug_assertions)]
+const LOG_LEVEL: LevelFilter = LevelFilter::Debug;
+
+#[cfg(not(debug_assertions))]
+const LOG_LEVEL: LevelFilter = LevelFilter::Error;
 
 fn main() {
-    init_logging(LevelFilter::Debug);
+    init_logging(LOG_LEVEL);
 
     let window_size = PhysicalSize::new(800, 600);
     let (event_loop, window) = create_window(&window_size);
@@ -34,8 +39,12 @@ fn main() {
                 app.wait_idle();
                 *control_flow = ControlFlow::Exit
             },
-            WindowEvent::Resized(size) => {                
-                app.resized(&window, size);
+            WindowEvent::Resized(size) => {
+                if size.width != 0 || size.height != 0 {
+                    app.resized(&window, size);
+                } else {
+                    app.minimized(&window);
+                }
             },            
             _ => (),
         },

@@ -82,9 +82,11 @@ impl App for HelloTriangleApp {
 
     fn update(&mut self) {}
 
-    fn resized(&mut self, _window: &Window, size: PhysicalSize<u32>) {
+    fn resized(&mut self, _window: &Window, size: PhysicalSize<u32>) {        
         self.recreate_swap_chain(size);
     }
+
+    fn minimized(&mut self, _window: &Window) {}
 
     fn draw_frame(&mut self, window: &Window) {
         log::info!("Drawing");
