@@ -1,10 +1,15 @@
 use winit::{dpi::PhysicalSize, window::Window};
 
-use ash::{Entry};
+use ash::Entry;
 
-use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain, swap_chain_sync::VkSwapChainSync};
+use super::{
+    command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance,
+    physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass,
+    settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain,
+    swap_chain_sync::VkSwapChainSync,
+};
 
-pub struct VkContext {    
+pub struct VkContext {
     pub command_pool: VkCommandPool,
     pub pipeline: VkPipeline,
     pub render_pass: VkRenderPass,
@@ -84,8 +89,10 @@ impl VkContext {
 
         self.render_pass = VkRenderPass::new(&self.device, &self.swap_chain);
         self.pipeline = VkPipeline::new(&self.device, &self.swap_chain, &self.render_pass);
-        self.swap_chain.create_frame_buffers(&self.device, &self.render_pass);
-        self.command_pool.create_command_buffers(&self.device, self.swap_chain.framebuffers.len() as u32);
+        self.swap_chain
+            .create_frame_buffers(&self.device, &self.render_pass);
+        self.command_pool
+            .create_command_buffers(&self.device, self.swap_chain.framebuffers.len() as u32);
     }
 }
 
@@ -94,7 +101,7 @@ impl Drop for VkContext {
         self.cleanup_swap_chain();
 
         self.swap_chain_sync.cleanup(&self.device);
-        self.command_pool.cleanup(&self.device);                        
+        self.command_pool.cleanup(&self.device);
         self.device.cleanup();
         self.surface.cleanup();
 

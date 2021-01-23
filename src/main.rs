@@ -38,14 +38,14 @@ fn main() {
             WindowEvent::CloseRequested => {
                 app.wait_idle();
                 *control_flow = ControlFlow::Exit
-            },
+            }
             WindowEvent::Resized(size) => {
                 if size.width != 0 || size.height != 0 {
                     app.resized(&window, size);
                 } else {
                     app.minimized(&window);
                 }
-            },            
+            }
             _ => (),
         },
         Event::RedrawRequested(_window_id) => {

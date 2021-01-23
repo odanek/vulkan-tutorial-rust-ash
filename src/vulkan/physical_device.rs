@@ -3,10 +3,7 @@ use std::{ffi::CStr, ops::Deref};
 use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk};
 
 use super::{
-    queue_family::VkQueueFamily,
-    surface::{VkSurface},
-    utils::coerce_string,
-    version::VkVersion,
+    queue_family::VkQueueFamily, surface::VkSurface, utils::coerce_string, version::VkVersion,
 };
 
 #[derive(Debug)]
@@ -76,14 +73,14 @@ fn enumerate_devices(instance: &ash::Instance) -> Vec<vk::PhysicalDevice> {
 }
 
 fn create_physical_device(
-    instance: &ash::Instance,    
+    instance: &ash::Instance,
     handle: vk::PhysicalDevice,
 ) -> VkPhysicalDevice {
     let properties = unsafe { instance.get_physical_device_properties(handle) };
     let kind = get_device_type(&properties);
     let name = coerce_string(&properties.device_name);
     let api_version = VkVersion::parse(properties.api_version);
-    let queue_families = get_queue_families(instance, handle);    
+    let queue_families = get_queue_families(instance, handle);
 
     VkPhysicalDevice {
         handle,

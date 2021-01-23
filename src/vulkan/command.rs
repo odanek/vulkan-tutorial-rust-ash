@@ -1,6 +1,6 @@
 use ash::{version::DeviceV1_0, vk};
 
-use super::{device::VkDevice};
+use super::device::VkDevice;
 
 pub struct VkCommandPool {
     pub handle: vk::CommandPool,
@@ -21,7 +21,10 @@ impl VkCommandPool {
                 .expect("Unable to create command pool")
         };
 
-        VkCommandPool { handle, buffers: Vec::new() }
+        VkCommandPool {
+            handle,
+            buffers: Vec::new(),
+        }
     }
 
     pub fn create_command_buffers(&mut self, device: &VkDevice, count: u32) {
@@ -41,9 +44,7 @@ impl VkCommandPool {
     }
 
     pub fn clear_command_buffers(&mut self, device: &VkDevice) {
-        unsafe {
-            device.free_command_buffers(self.handle, &self.buffers)
-        };
+        unsafe { device.free_command_buffers(self.handle, &self.buffers) };
         self.buffers.clear();
     }
 

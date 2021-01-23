@@ -82,7 +82,7 @@ impl App for HelloTriangleApp {
 
     fn update(&mut self) {}
 
-    fn resized(&mut self, _window: &Window, size: PhysicalSize<u32>) {        
+    fn resized(&mut self, _window: &Window, size: PhysicalSize<u32>) {
         self.recreate_swap_chain(size);
     }
 
@@ -106,12 +106,12 @@ impl App for HelloTriangleApp {
 
         let acquire_result = context
             .swap_chain
-            .acquire_next_image(&sync.image_available_semaphore[current_frame]);        
+            .acquire_next_image(&sync.image_available_semaphore[current_frame]);
         let image_index = match acquire_result {
             Ok((index, _)) => index as usize,
             Err(_) => {
                 self.recreate_swap_chain(window.inner_size());
-                return
+                return;
             }
         };
 

@@ -1,4 +1,9 @@
-use ash::{extensions::khr::Swapchain, prelude::VkResult, version::DeviceV1_0, vk::{self, SwapchainKHR}};
+use ash::{
+    extensions::khr::Swapchain,
+    prelude::VkResult,
+    version::DeviceV1_0,
+    vk::{self, SwapchainKHR},
+};
 
 use super::{
     device::VkDevice, physical_device::VkPhysicalDevice, render_pass::VkRenderPass,
@@ -31,7 +36,11 @@ impl VkSwapChain {
         let present_mode = choose_swapchain_surface_present_mode(&surface_caps.present_modes);
         log::info!("Choosing swap-chain presentation mode: {:?}", present_mode);
         let swap_extent = choose_swapchain_extent(surface_caps.capabilities, dimensions);
-        log::info!("Choosing swap-chain swap extent: {:?} for window size: {:?}", swap_extent, dimensions);
+        log::info!(
+            "Choosing swap-chain swap extent: {:?} for window size: {:?}",
+            swap_extent,
+            dimensions
+        );
         let image_count = choose_image_count(&surface_caps.capabilities);
         log::info!("Choosing swap-chain image count: {}", image_count);
 
@@ -115,13 +124,12 @@ impl VkSwapChain {
 
     pub fn acquire_next_image(&self, semaphore: &VkSemaphore) -> VkResult<(u32, bool)> {
         unsafe {
-            self.extension
-                .acquire_next_image(
-                    self.handle,
-                    std::u64::MAX,
-                    semaphore.handle,
-                    vk::Fence::null(),
-                )             
+            self.extension.acquire_next_image(
+                self.handle,
+                std::u64::MAX,
+                semaphore.handle,
+                vk::Fence::null(),
+            )
         }
     }
 
