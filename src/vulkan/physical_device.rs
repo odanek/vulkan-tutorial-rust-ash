@@ -4,7 +4,7 @@ use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk};
 
 use super::{
     queue_family::VkQueueFamily,
-    surface::{VkSurface, VkSurfaceCapabilities},
+    surface::{VkSurface},
     utils::coerce_string,
     version::VkVersion,
 };
@@ -24,7 +24,6 @@ pub struct VkPhysicalDevice {
     pub kind: DeviceType,
     pub api_version: VkVersion,
     pub queue_families: Vec<VkQueueFamily>,
-    pub surface_caps: VkSurfaceCapabilities,
 }
 
 impl VkPhysicalDevice {
@@ -39,7 +38,7 @@ impl VkPhysicalDevice {
         let mut best_physical_device: Option<VkPhysicalDevice> = None;
         let mut best_score = -1;
         for &handle in physical_devices.iter() {
-            let physical_device = create_physical_device(instance, surface, handle);
+            let physical_device = create_physical_device(instance, handle);
             describe_device(&physical_device);
 
             let score = rate_device_suitability(instance, &physical_device, surface, &extensions);
@@ -77,16 +76,14 @@ fn enumerate_devices(instance: &ash::Instance) -> Vec<vk::PhysicalDevice> {
 }
 
 fn create_physical_device(
-    instance: &ash::Instance,
-    surface: &VkSurface,
+    instance: &ash::Instance,    
     handle: vk::PhysicalDevice,
 ) -> VkPhysicalDevice {
     let properties = unsafe { instance.get_physical_device_properties(handle) };
     let kind = get_device_type(&properties);
     let name = coerce_string(&properties.device_name);
     let api_version = VkVersion::parse(properties.api_version);
-    let queue_families = get_queue_families(instance, handle);
-    let surface_caps = surface.get_physical_device_surface_capabilities(handle);
+    let queue_families = get_queue_families(instance, handle);    
 
     VkPhysicalDevice {
         handle,
@@ -94,7 +91,6 @@ fn create_physical_device(
         kind,
         api_version,
         queue_families,
-        surface_caps,
     }
 }
 
@@ -143,9 +139,12 @@ fn rate_device_suitability(
     if !has_surface_support_family {
         return -1;
     }
-    if device.surface_caps.formats.is_empty() || device.surface_caps.present_modes.is_empty() {
+
+    let surface_caps = surface.get_physical_device_surface_capabilities(device);
+    if surface_caps.formats.is_empty() || surface_caps.present_modes.is_empty() {
         return -1;
     }
+
     if !check_device_extension_support(instance, device, extensions) {
         return -1;
     }

@@ -3,7 +3,7 @@ use crate::{
     vulkan::{VkContext, VkSettings},
 };
 use ash::{version::DeviceV1_0, vk};
-use winit::window::Window;
+use winit::{dpi::PhysicalSize, window::Window};
 
 pub struct HelloTriangleApp {
     vk_context: VkContext,
@@ -13,9 +13,65 @@ impl HelloTriangleApp {
     pub fn new(window: &Window) -> HelloTriangleApp {
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
-        vk_context.record_commands();
-
         HelloTriangleApp { vk_context }
+    }
+
+    pub fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
+        let context = &mut self.vk_context;
+        context.device.wait_idle();
+        context.cleanup_swap_chain();
+        context.recreate_swap_chain(size);
+        self.record_commands();
+    }
+
+    pub fn record_commands(&self) {
+        let context = &self.vk_context;
+        let device = &context.device.handle;
+
+        for (index, &buffer) in context.command_pool.buffers.iter().enumerate() {
+            let command_begin_info = vk::CommandBufferBeginInfo::builder();
+            unsafe {
+                device
+                    .begin_command_buffer(buffer, &command_begin_info)
+                    .expect("Unable to begin command buffer")
+            };
+
+            let clear_values = [vk::ClearValue {
+                color: vk::ClearColorValue {
+                    float32: [0.0, 0.0, 0.0, 1.0],
+                },
+            }];
+
+            let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+                .render_pass(context.render_pass.handle)
+                .framebuffer(context.swap_chain.framebuffers[index])
+                .render_area(vk::Rect2D {
+                    offset: vk::Offset2D { x: 0, y: 0 },
+                    extent: context.swap_chain.swap_extent,
+                })
+                .clear_values(&clear_values);
+
+            unsafe {
+                device.cmd_begin_render_pass(
+                    buffer,
+                    &render_pass_begin_info,
+                    vk::SubpassContents::INLINE,
+                );
+
+                device.cmd_bind_pipeline(
+                    buffer,
+                    vk::PipelineBindPoint::GRAPHICS,
+                    context.pipeline.handle,
+                );
+                device.cmd_draw(buffer, 3, 1, 0, 0);
+
+                device.cmd_end_render_pass(buffer);
+
+                device
+                    .end_command_buffer(buffer)
+                    .expect("Failed to record end of command buffer");
+            };
+        }
     }
 }
 
@@ -26,27 +82,38 @@ impl App for HelloTriangleApp {
 
     fn update(&mut self) {}
 
-    fn draw_frame(&mut self) {
+    fn resized(&mut self, _window: &Window, size: PhysicalSize<u32>) {
+        self.recreate_swap_chain(size);
+    }
+
+    fn draw_frame(&mut self, window: &Window) {
         log::info!("Drawing");
 
         let context = &mut self.vk_context;
-        let current_frame = context.current_frame;
+        let sync = &mut context.swap_chain_sync;
+        let current_frame = sync.current_frame;
         let device = &context.device.handle;
-        let fence = context.in_flight_fences[current_frame];
+        let fence = sync.in_flight_fences[current_frame];
 
         unsafe {
             let fences = [fence.handle];
             device
                 .wait_for_fences(&fences, true, std::u64::MAX)
-                .expect("Waiting for fence failed");            
+                .expect("Waiting for fence failed");
         }
 
-        let image_index = context
+        let acquire_result = context
             .swap_chain
-            .acquire_next_image(&context.image_available_semaphore[current_frame])
-            as usize;
+            .acquire_next_image(&sync.image_available_semaphore[current_frame]);        
+        let image_index = match acquire_result {
+            Ok((index, _)) => index as usize,
+            Err(_) => {
+                self.recreate_swap_chain(window.inner_size());
+                return
+            }
+        };
 
-        if let Some(fence) = context.images_in_flight[image_index] {
+        if let Some(fence) = sync.images_in_flight[image_index] {
             unsafe {
                 let fences = [fence.handle];
                 device
@@ -55,12 +122,12 @@ impl App for HelloTriangleApp {
             }
         }
 
-        context.images_in_flight[image_index] = Some(fence);
+        sync.images_in_flight[image_index as usize] = Some(fence);
 
-        let wait_semaphores = [context.image_available_semaphore[current_frame].handle];
+        let wait_semaphores = [sync.image_available_semaphore[current_frame].handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-        let command_buffers = [context.command_pool.buffers[image_index]];
-        let signal_semaphores = [context.render_finished_semaphore[current_frame].handle];
+        let command_buffers = [context.command_pool.buffers[image_index as usize]];
+        let signal_semaphores = [sync.render_finished_semaphore[current_frame].handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)
             .wait_dst_stage_mask(&wait_stages)
@@ -72,11 +139,7 @@ impl App for HelloTriangleApp {
             let fences = [fence.handle];
             device.reset_fences(&fences).expect("Fence reset failed");
             device
-                .queue_submit(
-                    context.device.graphics_queue,
-                    &infos,
-                    fence.handle,
-                )
+                .queue_submit(context.device.graphics_queue, &infos, fence.handle)
                 .expect("Unable to submit queue")
         };
 
@@ -89,13 +152,20 @@ impl App for HelloTriangleApp {
             .image_indices(&images_indices)
             .build();
 
-        let _result = unsafe {
+        let result = unsafe {
             context
                 .swap_chain
                 .extension
                 .queue_present(context.device.presentation_queue, &present_info)
         };
 
-        context.current_frame = (context.current_frame + 1) % context.max_frames_in_flight;
+        sync.current_frame = (sync.current_frame + 1) % sync.max_frames_in_flight;
+
+        match result {
+            Ok(true) | Err(_) => {
+                self.recreate_swap_chain(window.inner_size());
+            }
+            Ok(false) => (),
+        }
     }
 }

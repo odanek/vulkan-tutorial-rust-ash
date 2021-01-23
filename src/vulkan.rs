@@ -13,6 +13,7 @@ mod settings;
 mod shader;
 mod surface;
 mod swap_chain;
+mod swap_chain_sync;
 mod utils;
 mod version;
 

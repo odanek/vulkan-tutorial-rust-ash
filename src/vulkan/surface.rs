@@ -56,21 +56,21 @@ impl VkSurface {
 
     pub fn get_physical_device_surface_capabilities(
         &self,
-        physical_device: vk::PhysicalDevice,
+        physical_device: &VkPhysicalDevice,
     ) -> VkSurfaceCapabilities {
         unsafe {
             VkSurfaceCapabilities {
                 capabilities: self
                     .extension
-                    .get_physical_device_surface_capabilities(physical_device, self.handle)
+                    .get_physical_device_surface_capabilities(physical_device.handle, self.handle)
                     .expect("Unable to query surface capabilities"),
                 formats: self
                     .extension
-                    .get_physical_device_surface_formats(physical_device, self.handle)
+                    .get_physical_device_surface_formats(physical_device.handle, self.handle)
                     .expect("Unable to query surface formats"),
                 present_modes: self
                     .extension
-                    .get_physical_device_surface_present_modes(physical_device, self.handle)
+                    .get_physical_device_surface_present_modes(physical_device.handle, self.handle)
                     .expect("Unable to query surface presentation modes"),
             }
         }

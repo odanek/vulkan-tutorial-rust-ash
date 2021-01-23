@@ -22,6 +22,7 @@ fn main() {
     let (event_loop, window) = create_window(&window_size);
 
     let mut app = HelloTriangleApp::new(&window);
+    app.record_commands();
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {
@@ -32,11 +33,14 @@ fn main() {
             WindowEvent::CloseRequested => {
                 app.wait_idle();
                 *control_flow = ControlFlow::Exit
-            }
+            },
+            WindowEvent::Resized(size) => {                
+                app.resized(&window, size);
+            },            
             _ => (),
         },
         Event::RedrawRequested(_window_id) => {
-            app.draw_frame();
+            app.draw_frame(&window);
         }
         // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
         // dispatched any events. This is ideal for games and similar applications.

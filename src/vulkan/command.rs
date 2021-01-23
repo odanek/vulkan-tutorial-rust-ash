@@ -8,7 +8,7 @@ pub struct VkCommandPool {
 }
 
 impl VkCommandPool {
-    pub fn new(device: &VkDevice, count: u32) -> VkCommandPool {
+    pub fn new(device: &VkDevice) -> VkCommandPool {
         log::info!("Creating command pool");
 
         let pool_info = vk::CommandPoolCreateInfo::builder()
@@ -21,21 +21,30 @@ impl VkCommandPool {
                 .expect("Unable to create command pool")
         };
 
+        VkCommandPool { handle, buffers: Vec::new() }
+    }
+
+    pub fn create_command_buffers(&mut self, device: &VkDevice, count: u32) {
         log::info!("Creating command buffers");
 
         let buffer_info = vk::CommandBufferAllocateInfo::builder()
-            .command_pool(handle)
+            .command_pool(self.handle)
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(count);
 
-        let buffers = unsafe {
+        self.buffers = unsafe {
             device
                 .handle
                 .allocate_command_buffers(&buffer_info)
                 .unwrap()
         };
+    }
 
-        VkCommandPool { handle, buffers }
+    pub fn clear_command_buffers(&mut self, device: &VkDevice) {
+        unsafe {
+            device.free_command_buffers(self.handle, &self.buffers)
+        };
+        self.buffers.clear();
     }
 
     pub fn cleanup(&mut self, device: &VkDevice) {

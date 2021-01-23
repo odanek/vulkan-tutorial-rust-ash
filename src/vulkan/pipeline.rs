@@ -22,6 +22,7 @@ impl VkPipeline {
     ) -> VkPipeline {
         log::info!("Creating pipeline");
 
+        // TODO: No need to read it again in recreateSwapChain
         let vertex_shader_module = read_shader_from_file("shader/vert.spv", device);
         let fragment_shader_module = read_shader_from_file("shader/frag.spv", device);
 

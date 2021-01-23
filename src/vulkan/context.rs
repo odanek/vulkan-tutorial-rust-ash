@@ -1,27 +1,15 @@
-use winit::window::Window;
+use winit::{dpi::PhysicalSize, window::Window};
 
-use ash::{version::DeviceV1_0, vk, Entry};
+use ash::{Entry};
 
-use super::{
-    command::VkCommandPool, debug::VkValidation, device::VkDevice, fence::VkFence,
-    instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline,
-    render_pass::VkRenderPass, semaphore::VkSemaphore, settings::VkSettings, surface::VkSurface,
-    swap_chain::VkSwapChain,
-};
+use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain, swap_chain_sync::VkSwapChainSync};
 
-pub struct VkContext {
-    pub max_frames_in_flight: usize,
-    pub current_frame: usize,
-
-    pub image_available_semaphore: Vec<VkSemaphore>,
-    pub render_finished_semaphore: Vec<VkSemaphore>,
-    pub in_flight_fences: Vec<VkFence>,
-    pub images_in_flight: Vec<Option<VkFence>>,
-
+pub struct VkContext {    
     pub command_pool: VkCommandPool,
     pub pipeline: VkPipeline,
     pub render_pass: VkRenderPass,
     pub swap_chain: VkSwapChain,
+    pub swap_chain_sync: VkSwapChainSync,
     pub device: VkDevice,
     pub physical_device: VkPhysicalDevice,
     pub surface: VkSurface,
@@ -57,29 +45,17 @@ impl VkContext {
 
         swap_chain.create_frame_buffers(&device, &render_pass);
 
-        let command_pool = VkCommandPool::new(&device, swap_chain.framebuffers.len() as u32);
+        let mut command_pool = VkCommandPool::new(&device);
+        command_pool.create_command_buffers(&device, swap_chain.framebuffers.len() as u32);
 
-        let max_frames_in_flight = 2usize;
-        let image_available_semaphore = create_semaphores(&device, max_frames_in_flight);
-        let render_finished_semaphore = create_semaphores(&device, max_frames_in_flight);
-        let in_flight_fences = create_fences(&device, max_frames_in_flight);
-        let images_in_flight: Vec<Option<VkFence>> = (0..swap_chain.images.len())
-            .map(|_| None)
-            .collect::<Vec<Option<VkFence>>>();
+        let swap_chain_sync = VkSwapChainSync::new(&device, &swap_chain, 2);
 
         VkContext {
-            max_frames_in_flight,
-            current_frame: 0,
-
-            image_available_semaphore,
-            render_finished_semaphore,
-            in_flight_fences,
-            images_in_flight,
-
             command_pool,
             pipeline,
             render_pass,
             swap_chain,
+            swap_chain_sync,
             device,
             physical_device,
             surface,
@@ -89,73 +65,36 @@ impl VkContext {
         }
     }
 
-    pub fn record_commands(&self) {
-        let device = &self.device.handle;
+    pub fn cleanup_swap_chain(&mut self) {
+        self.swap_chain.cleanup_framebuffers(&self.device);
+        self.command_pool.clear_command_buffers(&self.device);
+        self.pipeline.cleanup(&self.device);
+        self.render_pass.cleanup(&self.device);
+        self.swap_chain.cleanup(&self.device);
+    }
 
-        for (index, &buffer) in self.command_pool.buffers.iter().enumerate() {
-            let command_begin_info = vk::CommandBufferBeginInfo::builder();
-            unsafe {
-                device
-                    .begin_command_buffer(buffer, &command_begin_info)
-                    .expect("Unable to begin command buffer")
-            };
+    pub fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
+        self.swap_chain = VkSwapChain::new(
+            &self.instance,
+            &self.physical_device,
+            &self.device,
+            &self.surface,
+            &[size.width, size.height],
+        );
 
-            let clear_values = [vk::ClearValue {
-                color: vk::ClearColorValue {
-                    float32: [0.0, 0.0, 0.0, 1.0],
-                },
-            }];
-
-            let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-                .render_pass(self.render_pass.handle)
-                .framebuffer(self.swap_chain.framebuffers[index])
-                .render_area(vk::Rect2D {
-                    offset: vk::Offset2D { x: 0, y: 0 },
-                    extent: self.swap_chain.swap_extent,
-                })
-                .clear_values(&clear_values);
-
-            unsafe {
-                device.cmd_begin_render_pass(
-                    buffer,
-                    &render_pass_begin_info,
-                    vk::SubpassContents::INLINE,
-                );
-
-                device.cmd_bind_pipeline(
-                    buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    self.pipeline.handle,
-                );
-                device.cmd_draw(buffer, 3, 1, 0, 0);
-
-                device.cmd_end_render_pass(buffer);
-
-                device
-                    .end_command_buffer(buffer)
-                    .expect("Failed to record end of command buffer");
-            };
-        }
+        self.render_pass = VkRenderPass::new(&self.device, &self.swap_chain);
+        self.pipeline = VkPipeline::new(&self.device, &self.swap_chain, &self.render_pass);
+        self.swap_chain.create_frame_buffers(&self.device, &self.render_pass);
+        self.command_pool.create_command_buffers(&self.device, self.swap_chain.framebuffers.len() as u32);
     }
 }
 
 impl Drop for VkContext {
     fn drop(&mut self) {
-        self.image_available_semaphore
-            .iter()
-            .for_each(|semaphore| semaphore.cleanup(&self.device));
-        self.render_finished_semaphore
-            .iter()
-            .for_each(|semaphore| semaphore.cleanup(&self.device));
-        self.in_flight_fences
-            .iter()
-            .for_each(|fence| fence.cleanup(&self.device));
+        self.cleanup_swap_chain();
 
-        self.command_pool.cleanup(&self.device);
-        self.swap_chain.cleanup_framebuffers(&self.device);
-        self.pipeline.cleanup(&self.device);
-        self.render_pass.cleanup(&self.device);
-        self.swap_chain.cleanup(&self.device);
+        self.swap_chain_sync.cleanup(&self.device);
+        self.command_pool.cleanup(&self.device);                        
         self.device.cleanup();
         self.surface.cleanup();
 
@@ -165,14 +104,4 @@ impl Drop for VkContext {
         }
         self.instance.cleanup();
     }
-}
-
-fn create_semaphores(device: &VkDevice, count: usize) -> Vec<VkSemaphore> {
-    (0..count)
-        .map(|_| VkSemaphore::new(device))
-        .collect::<Vec<_>>()
-}
-
-fn create_fences(device: &VkDevice, count: usize) -> Vec<VkFence> {
-    (0..count).map(|_| VkFence::new(device)).collect::<Vec<_>>()
 }
