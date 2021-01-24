@@ -1,6 +1,7 @@
 mod app;
 mod hello_triangle;
 mod logger;
+mod render;
 mod vulkan;
 
 use app::App;
