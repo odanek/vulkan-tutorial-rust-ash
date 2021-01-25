@@ -2,6 +2,8 @@ use std::ffi::CString;
 
 use ash::{version::DeviceV1_0, vk};
 
+use crate::render::Vertex;
+
 use super::{
     device::VkDevice, render_pass::VkRenderPass, shader::read_shader_from_file,
     swap_chain::VkSwapChain,
@@ -39,7 +41,15 @@ impl VkPipeline {
         );
         let shader_stages = [vertex_shader_stage_info, fragment_shader_stage_info];
 
-        let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::builder();
+        // TODO: Where to put this?
+        let vertex_input_binding = create_vertex_input_binding_description();
+        let binding_descriptions = [vertex_input_binding];
+        let position_vertex_attribute = create_position_vertex_input_attribute_description();
+        let color_vertex_attribute = create_color_vertex_input_attribute_description();
+        let attribute_descriptions = [position_vertex_attribute, color_vertex_attribute];
+        let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::builder()
+            .vertex_binding_descriptions(&binding_descriptions)
+            .vertex_attribute_descriptions(&attribute_descriptions);
 
         let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder()
             .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
@@ -157,5 +167,33 @@ fn create_shader_stage(
         .stage(stage)
         .module(module)
         .name(&entry_point)
+        .build()
+}
+
+fn create_vertex_input_binding_description() -> vk::VertexInputBindingDescription {
+    vk::VertexInputBindingDescription::builder()
+        .binding(0)
+        .stride(std::mem::size_of::<Vertex>() as u32)
+        .input_rate(vk::VertexInputRate::VERTEX)
+        .build()
+}
+
+fn create_position_vertex_input_attribute_description() -> vk::VertexInputAttributeDescription {
+    // TODO: Use memoffset crate
+    vk::VertexInputAttributeDescription::builder()
+        .binding(0)
+        .location(0)
+        .format(vk::Format::R32G32B32_SFLOAT)
+        .offset(0)
+        .build()
+}
+
+fn create_color_vertex_input_attribute_description() -> vk::VertexInputAttributeDescription {
+    // TODO: Use memoffset crate
+    vk::VertexInputAttributeDescription::builder()
+        .binding(0)
+        .location(1)
+        .format(vk::Format::R32G32B32_SFLOAT)
+        .offset(12)
         .build()
 }
