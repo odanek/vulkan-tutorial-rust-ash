@@ -1,17 +1,14 @@
 use winit::{dpi::PhysicalSize, window::Window};
 
-use ash::Entry;
+use ash::{Entry, version::DeviceV1_0, vk};
 
-use super::{
-    command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance,
-    physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass,
-    settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain,
-    swap_chain_sync::VkSwapChainSync,
-};
+use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice, pipeline::VkPipeline, render_pass::VkRenderPass, settings::VkSettings, shader::read_shader_from_file, surface::VkSurface, swap_chain::VkSwapChain, swap_chain_sync::VkSwapChainSync};
 
 pub struct VkContext {
     pub command_pool: VkCommandPool,
     pub pipeline: VkPipeline,
+    pub vertex_shader_module: vk::ShaderModule,
+    pub fragment_shader_module: vk::ShaderModule,
     pub render_pass: VkRenderPass,
     pub swap_chain: VkSwapChain,
     pub swap_chain_sync: VkSwapChainSync,
@@ -46,7 +43,9 @@ impl VkContext {
         );
 
         let render_pass = VkRenderPass::new(&device, &swap_chain);
-        let pipeline = VkPipeline::new(&device, &swap_chain, &render_pass);
+        let vertex_shader_module = read_shader_from_file("shader/vert.spv", &device);
+        let fragment_shader_module = read_shader_from_file("shader/frag.spv", &device);
+        let pipeline = VkPipeline::new(&device, &swap_chain, &render_pass, vertex_shader_module, fragment_shader_module);
 
         swap_chain.create_frame_buffers(&device, &render_pass);
 
@@ -58,6 +57,8 @@ impl VkContext {
         VkContext {
             command_pool,
             pipeline,
+            vertex_shader_module,
+            fragment_shader_module,
             render_pass,
             swap_chain,
             swap_chain_sync,
@@ -88,7 +89,7 @@ impl VkContext {
         );
 
         self.render_pass = VkRenderPass::new(&self.device, &self.swap_chain);
-        self.pipeline = VkPipeline::new(&self.device, &self.swap_chain, &self.render_pass);
+        self.pipeline = VkPipeline::new(&self.device, &self.swap_chain, &self.render_pass, self.vertex_shader_module, self.fragment_shader_module);
         self.swap_chain
             .create_frame_buffers(&self.device, &self.render_pass);
         self.command_pool
@@ -100,6 +101,10 @@ impl Drop for VkContext {
     fn drop(&mut self) {
         self.cleanup_swap_chain();
 
+        unsafe {
+            self.device.handle.destroy_shader_module(self.vertex_shader_module, None);
+            self.device.handle.destroy_shader_module(self.fragment_shader_module, None);
+        }
         self.swap_chain_sync.cleanup(&self.device);
         self.command_pool.cleanup(&self.device);
         self.device.cleanup();
