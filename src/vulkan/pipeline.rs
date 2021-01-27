@@ -6,6 +6,8 @@ use crate::render::Vertex;
 
 use super::{device::VkDevice, render_pass::VkRenderPass, swap_chain::VkSwapChain};
 
+use memoffset::offset_of;
+
 pub struct VkPipeline {
     pub handle: vk::Pipeline,
     pub layout: vk::PipelineLayout,
@@ -168,21 +170,19 @@ fn create_vertex_input_binding_description() -> vk::VertexInputBindingDescriptio
 }
 
 fn create_position_vertex_input_attribute_description() -> vk::VertexInputAttributeDescription {
-    // TODO: Use memoffset crate
     vk::VertexInputAttributeDescription::builder()
         .binding(0)
         .location(0)
         .format(vk::Format::R32G32B32_SFLOAT)
-        .offset(0)
+        .offset(offset_of!(Vertex, position) as u32)
         .build()
 }
 
 fn create_color_vertex_input_attribute_description() -> vk::VertexInputAttributeDescription {
-    // TODO: Use memoffset crate
     vk::VertexInputAttributeDescription::builder()
         .binding(0)
         .location(1)
         .format(vk::Format::R32G32B32_SFLOAT)
-        .offset(12)
+        .offset(offset_of!(Vertex, color) as u32)
         .build()
 }
