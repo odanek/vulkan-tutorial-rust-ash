@@ -1,8 +1,4 @@
-use crate::{
-    app::App,
-    render::{Vertex},
-    vulkan::{VkContext, VkSettings},
-};
+use crate::{app::App, render::{Vertex}, vulkan::{VkContext, VkDevice, VkPipeline, VkSettings, read_shader_from_file}};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -13,6 +9,10 @@ const VERTICES: [Vertex; 3] = [
 ];
 
 pub struct HelloTriangleApp {
+    vertex_buffer: vk::Buffer,
+    pipeline: VkPipeline,
+    vertex_shader_module: vk::ShaderModule,
+    fragment_shader_module: vk::ShaderModule,
     vk_context: VkContext,
 }
 
@@ -20,17 +20,50 @@ impl HelloTriangleApp {
     pub fn new(window: &Window) -> HelloTriangleApp {
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
-        HelloTriangleApp { vk_context }
+
+        let vertex_shader_module = read_shader_from_file("shader/vert.spv", &vk_context.device);
+        let fragment_shader_module = read_shader_from_file("shader/frag.spv", &vk_context.device);
+        let pipeline = VkPipeline::new(&vk_context.device, &vk_context.swap_chain, &vk_context.render_pass, vertex_shader_module, fragment_shader_module);
+
+        let vertex_buffer = Self::create_vertex_buffer(&vk_context.device);
+
+        HelloTriangleApp { 
+            vertex_buffer,
+            pipeline,
+            vertex_shader_module,
+            fragment_shader_module,
+            vk_context 
+        }
+    }
+
+    fn create_vertex_buffer(device: &VkDevice) -> vk::Buffer {
+        let buffer_info = vk::BufferCreateInfo::builder()
+        .size((VERTICES.len() * std::mem::size_of::<Vertex>()) as u64)
+        .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+        .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+        unsafe {
+            device.handle.create_buffer(&buffer_info, None).expect("Unable to create vertex buffer")
+        }
+    }
+
+    fn assign_buffer_memory(device: &VkDevice, buffer: vk::Buffer) {
+        let requirements = unsafe {
+        device.handle.get_buffer_memory_requirements(buffer)
+        };
     }
 
     pub fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
         let context = &mut self.vk_context;
         context.device.wait_idle();
+        self.pipeline.cleanup(&context.device);
         context.cleanup_swap_chain();
         context.recreate_swap_chain(size);
+        self.pipeline = VkPipeline::new(&context.device, &context.swap_chain, &context.render_pass, self.vertex_shader_module, self.fragment_shader_module);
         self.record_commands();
     }
 
+    // TODO: Called from main
     pub fn record_commands(&self) {
         let context = &self.vk_context;
         let device = &context.device.handle;
@@ -68,7 +101,7 @@ impl HelloTriangleApp {
                 device.cmd_bind_pipeline(
                     buffer,
                     vk::PipelineBindPoint::GRAPHICS,
-                    context.pipeline.handle,
+                    self.pipeline.handle,
                 );
                 device.cmd_draw(buffer, 3, 1, 0, 0);
 
@@ -176,5 +209,19 @@ impl App for HelloTriangleApp {
             }
             Ok(false) => (),
         }
+    }
+}
+
+impl Drop for HelloTriangleApp {
+    fn drop(&mut self) {
+        let context = &self.vk_context;
+        unsafe {
+            context.device.handle.destroy_buffer(self.vertex_buffer, None);
+        }
+        self.pipeline.cleanup(&context.device);
+        unsafe {
+            context.device.handle.destroy_shader_module(self.vertex_shader_module, None);
+            context.device.handle.destroy_shader_module(self.fragment_shader_module, None);
+        }        
     }
 }

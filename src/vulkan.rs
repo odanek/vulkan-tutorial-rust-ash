@@ -19,3 +19,6 @@ mod version;
 
 pub use context::VkContext;
 pub use settings::VkSettings;
+pub use pipeline::VkPipeline;
+pub use device::VkDevice;
+pub use shader::read_shader_from_file;
