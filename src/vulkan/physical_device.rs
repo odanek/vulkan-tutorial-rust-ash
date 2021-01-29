@@ -51,6 +51,13 @@ impl VkPhysicalDevice {
         panic!("Failed to find a suitable GPU!");
     }
 
+    pub fn get_mem_properties(&self, instance: &ash::Instance) -> vk::PhysicalDeviceMemoryProperties {
+        unsafe {
+            instance
+                .get_physical_device_memory_properties(self.handle)
+        }
+    }
+
     pub fn get_required_device_extensions() -> Vec<&'static CStr> {
         vec![Swapchain::name()]
     }
