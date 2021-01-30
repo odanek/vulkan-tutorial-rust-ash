@@ -50,16 +50,19 @@ impl HelloTriangleApp {
         let vertex_buffer_size = (VERTICES.len() * std::mem::size_of::<Vertex>()) as u64;
         let vertex_buffer = Self::create_vertex_buffer(&vk_context.device, vertex_buffer_size);
         let vertex_buffer_memory = Self::assign_buffer_memory(&vk_context, vertex_buffer);
-        Self::map_buffer_memory(&vk_context.device, vertex_buffer_memory, vertex_buffer_size);
+        Self::map_buffer_memory(&vk_context.device, vertex_buffer_memory, vertex_buffer_size);        
 
-        HelloTriangleApp {
+        let app = HelloTriangleApp {
             vertex_buffer_memory,
             vertex_buffer,
             pipeline,
             vertex_shader_module,
             fragment_shader_module,
             vk_context,
-        }
+        };
+        app.record_commands();
+
+        app
     }
 
     fn create_vertex_buffer(device: &VkDevice, size: u64) -> vk::Buffer {

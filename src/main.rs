@@ -26,9 +26,7 @@ fn main() {
 
     let window_size = PhysicalSize::new(800, 600);
     let (event_loop, window) = create_window(&window_size);
-
-    let mut app = HelloTriangleApp::new(&window);
-    app.record_commands();
+    let mut app = HelloTriangleApp::new(&window);    
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {
