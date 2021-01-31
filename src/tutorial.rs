@@ -24,7 +24,7 @@ const VERTICES: [Vertex; 3] = [
     },
 ];
 
-pub struct HelloTriangleApp {
+pub struct TutorialApp {
     vertex_buffer: VkBuffer,
     pipeline: VkPipeline,
     vertex_shader_module: vk::ShaderModule,
@@ -32,8 +32,8 @@ pub struct HelloTriangleApp {
     vk_context: VkContext,
 }
 
-impl HelloTriangleApp {
-    pub fn new(window: &Window) -> HelloTriangleApp {
+impl TutorialApp {
+    pub fn new(window: &Window) -> TutorialApp {
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
 
@@ -54,7 +54,7 @@ impl HelloTriangleApp {
             vk_context.device.graphics_queue
         );
 
-        let app = HelloTriangleApp {
+        let app = TutorialApp {
             vertex_buffer,
             pipeline,
             vertex_shader_module,
@@ -174,7 +174,7 @@ impl HelloTriangleApp {
     }
 }
 
-impl App for HelloTriangleApp {
+impl App for TutorialApp {
     fn wait_idle(&self) {
         self.vk_context.device.wait_idle();
     }
@@ -271,7 +271,7 @@ impl App for HelloTriangleApp {
     }
 }
 
-impl Drop for HelloTriangleApp {
+impl Drop for TutorialApp {
     fn drop(&mut self) {
         let context = &self.vk_context;
         self.vertex_buffer.cleanup(&context.device);

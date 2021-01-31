@@ -12,7 +12,7 @@ pub fn read_shader_from_file(path: &str, device: &VkDevice) -> vk::ShaderModule 
 
     let mut buf = Vec::new();
     let mut file = File::open(path).expect("Unable to open shader file");
-    file.read_to_end(&mut buf).unwrap();
+    file.read_to_end(&mut buf).expect("Unable to read shader file");
     let mut cursor = Cursor::new(buf);
     let binary = ash::util::read_spv(&mut cursor).expect("Unable to read shader");
     let create_info = vk::ShaderModuleCreateInfo::builder().code(&binary);
@@ -20,6 +20,6 @@ pub fn read_shader_from_file(path: &str, device: &VkDevice) -> vk::ShaderModule 
         device
             .handle
             .create_shader_module(&create_info, None)
-            .unwrap()
+            .expect("Unable to create shader module")
     }
 }

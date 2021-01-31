@@ -1,11 +1,11 @@
 mod app;
-mod hello_triangle;
+mod tutorial;
 mod logger;
 mod render;
 mod vulkan;
 
 use app::App;
-use hello_triangle::HelloTriangleApp;
+use tutorial::TutorialApp;
 use log::LevelFilter;
 use logger::init_logging;
 use winit::{
@@ -26,7 +26,7 @@ fn main() {
 
     let window_size = PhysicalSize::new(800, 600);
     let (event_loop, window) = create_window(&window_size);
-    let mut app = HelloTriangleApp::new(&window);    
+    let mut app = TutorialApp::new(&window);    
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {

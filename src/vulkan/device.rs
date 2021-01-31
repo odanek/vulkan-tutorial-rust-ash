@@ -8,10 +8,14 @@ use super::{
 
 pub struct VkDevice {
     pub handle: ash::Device,
+
+    // TODO: Remove these from VkDevice
     pub graphics_queue: vk::Queue,
     pub graphics_queue_family: u32,
     pub presentation_queue: vk::Queue,
     pub presentation_queue_family: u32,
+
+    // TODO: Where to put this?
     pub swapchain_image_views: Vec<vk::ImageView>,
 }
 
