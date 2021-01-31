@@ -4,15 +4,12 @@ use super::device::VkDevice;
 
 pub struct VkCommandPool {
     pub handle: vk::CommandPool,
-    pub buffers: Vec<vk::CommandBuffer>,
 }
 
 impl VkCommandPool {
-    pub fn new(device: &VkDevice) -> VkCommandPool {
-        log::info!("Creating command pool");
-
+    pub fn new(device: &VkDevice, queue_family_index: u32) -> VkCommandPool {    
         let pool_info = vk::CommandPoolCreateInfo::builder()
-            .queue_family_index(device.graphics_queue_family)
+            .queue_family_index(queue_family_index)
             .flags(vk::CommandPoolCreateFlags::empty());
 
         let handle = unsafe {
@@ -21,34 +18,46 @@ impl VkCommandPool {
                 .expect("Unable to create command pool")
         };
 
-        VkCommandPool {
-            handle,
-            buffers: Vec::new(),
-        }
+        VkCommandPool { handle }
     }
 
-    pub fn create_command_buffers(&mut self, device: &VkDevice, count: u32) {
-        log::info!("Creating command buffers");
-
+    pub fn create_command_buffers(&self, device: &VkDevice, count: u32) -> Vec<vk::CommandBuffer> {    
         let buffer_info = vk::CommandBufferAllocateInfo::builder()
             .command_pool(self.handle)
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(count);
 
-        self.buffers = unsafe {
+        unsafe {
             device
                 .handle
                 .allocate_command_buffers(&buffer_info)
-                .unwrap()
-        };
+                .expect("Unable to allocate command buffers")
+        }
     }
 
-    pub fn clear_command_buffers(&mut self, device: &VkDevice) {
-        unsafe { device.free_command_buffers(self.handle, &self.buffers) };
-        self.buffers.clear();
+    pub fn create_command_buffer(&self, device: &VkDevice) -> vk::CommandBuffer {
+        self.create_command_buffers(device, 1)[0]
     }
 
-    pub fn cleanup(&mut self, device: &VkDevice) {
+    pub fn clear_command_buffer(
+        &self,
+        device: &VkDevice,
+        buffer: vk::CommandBuffer,
+    ) {
+        let buffers = [buffer];
+        unsafe { device.free_command_buffers(self.handle, &buffers) };
+    }
+
+    pub fn clear_command_buffers(
+        &self,
+        device: &VkDevice,
+        buffers: &mut Vec<vk::CommandBuffer>,
+    ) {
+        unsafe { device.free_command_buffers(self.handle, buffers) };
+        buffers.clear();
+    }
+
+    pub fn cleanup(&self, device: &VkDevice) {
         log::debug!("Dropping command pool");
         unsafe {
             device.handle.destroy_command_pool(self.handle, None);

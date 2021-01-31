@@ -2,7 +2,7 @@ use std::mem::align_of;
 
 use ash::{version::DeviceV1_0, vk};
 
-use super::{physical_device::VkPhysicalDevice, VkDevice};
+use super::{physical_device::VkPhysicalDevice, VkCommandPool, VkDevice};
 
 pub struct VkBuffer {
     pub handle: vk::Buffer,
@@ -41,6 +41,50 @@ impl VkBuffer {
         }
     }
 
+    pub fn copy(
+        device: &VkDevice,
+        command_pool: &VkCommandPool,
+        queue: vk::Queue,
+        src: &VkBuffer,
+        dst: &VkBuffer,
+    ) {
+        let command_buffer = command_pool.create_command_buffer(device);
+        let command_begin_info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        unsafe {
+            device
+                .begin_command_buffer(command_buffer, &command_begin_info)
+                .expect("Unable to begin command buffer")
+        };
+
+        unsafe {
+            let regions = [vk::BufferCopy {
+                src_offset: 0,
+                dst_offset: 0,
+                size: src.size,
+            }];
+            device
+                .handle
+                .cmd_copy_buffer(command_buffer, src.handle, dst.handle, &regions);
+            device
+                .handle
+                .end_command_buffer(command_buffer)
+                .expect("Unable to end command buffer");
+
+            let command_buffers = [command_buffer];
+            let submit_info = vk::SubmitInfo::builder().command_buffers(&command_buffers);
+            let infos = [submit_info.build()];
+            device
+                .queue_submit(queue, &infos, vk::Fence::null())
+                .expect("Unable to submit queue");
+            device
+                .queue_wait_idle(queue)
+                .expect("Unable to wait for queue idle state");
+        }
+
+        command_pool.clear_command_buffer(device, command_buffer);
+    }
+
     pub fn cleanup(&self, device: &VkDevice) {
         unsafe {
             device.handle.destroy_buffer(self.handle, None);
@@ -70,15 +114,11 @@ fn assign_buffer_memory(
     physical_device: &VkPhysicalDevice,
     device: &VkDevice,
     buffer: vk::Buffer,
-    properties: vk::MemoryPropertyFlags
+    properties: vk::MemoryPropertyFlags,
 ) -> vk::DeviceMemory {
     let mem_requirements = unsafe { device.handle.get_buffer_memory_requirements(buffer) };
     let physical_mem_properties = physical_device.get_mem_properties(instance);
-    let mem_type_index = find_memory_type(
-        mem_requirements,
-        physical_mem_properties,
-        properties,
-    );
+    let mem_type_index = find_memory_type(mem_requirements, physical_mem_properties, properties);
 
     let alloc_info = vk::MemoryAllocateInfo::builder()
         .allocation_size(mem_requirements.size)

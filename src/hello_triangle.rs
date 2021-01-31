@@ -1,7 +1,10 @@
 use crate::{
     app::App,
     render::Vertex,
-    vulkan::{read_shader_from_file, VkBuffer, VkContext, VkPipeline, VkSettings},
+    vulkan::{
+        read_shader_from_file, VkBuffer, VkCommandPool, VkContext, VkDevice, VkPhysicalDevice,
+        VkPipeline, VkSettings,
+    },
 };
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
@@ -43,17 +46,13 @@ impl HelloTriangleApp {
             vertex_shader_module,
             fragment_shader_module,
         );
-
-        let vertex_buffer_size = (VERTICES.len() * std::mem::size_of::<Vertex>()) as u64;
-        let vertex_buffer = VkBuffer::new(
+        let vertex_buffer = Self::create_vertex_buffer(
             &vk_context.instance,
             &vk_context.physical_device,
             &vk_context.device,
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-            vertex_buffer_size,
+            &vk_context.command_pool,
+            vk_context.device.graphics_queue
         );
-        vertex_buffer.map_memory(&vk_context.device, &VERTICES);
 
         let app = HelloTriangleApp {
             vertex_buffer,
@@ -83,12 +82,47 @@ impl HelloTriangleApp {
         self.record_commands();
     }
 
-    // TODO: Called from main
-    pub fn record_commands(&self) {
+    fn create_vertex_buffer(
+        instance: &ash::Instance,
+        physical_device: &VkPhysicalDevice,
+        device: &VkDevice,
+        command_pool: &VkCommandPool,
+        queue: vk::Queue,
+    ) -> VkBuffer {
+        let size = (VERTICES.len() * std::mem::size_of::<Vertex>()) as u64;
+        log::info!("creating vertex buffer of size {}", size);
+
+        let staging_buffer = VkBuffer::new(
+            instance,
+            physical_device,
+            device,
+            vk::BufferUsageFlags::TRANSFER_SRC,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            size,
+        );
+        staging_buffer.map_memory(device, &VERTICES);
+
+        let vertex_buffer = VkBuffer::new(
+            instance,
+            physical_device,
+            device,
+            vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            size,
+        );
+
+        log::info!("Copying vertex buffer data");
+        VkBuffer::copy(device, command_pool, queue, &staging_buffer, &vertex_buffer);
+        staging_buffer.cleanup(device);
+
+        vertex_buffer
+    }
+
+    fn record_commands(&self) {
         let context = &self.vk_context;
         let device = &context.device.handle;
 
-        for (index, &buffer) in context.command_pool.buffers.iter().enumerate() {
+        for (index, &buffer) in context.command_buffers.iter().enumerate() {
             let command_begin_info = vk::CommandBufferBeginInfo::builder();
             unsafe {
                 device
@@ -193,7 +227,7 @@ impl App for HelloTriangleApp {
 
         let wait_semaphores = [sync.image_available_semaphore[current_frame].handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-        let command_buffers = [context.command_pool.buffers[image_index as usize]];
+        let command_buffers = [context.command_buffers[image_index as usize]];
         let signal_semaphores = [sync.render_finished_semaphore[current_frame].handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)

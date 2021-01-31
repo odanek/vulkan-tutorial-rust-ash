@@ -19,8 +19,10 @@ mod utils;
 mod version;
 
 pub use buffer::VkBuffer;
+pub use command::VkCommandPool;
 pub use context::VkContext;
-pub use settings::VkSettings;
-pub use pipeline::VkPipeline;
 pub use device::VkDevice;
+pub use physical_device::VkPhysicalDevice;
+pub use pipeline::VkPipeline;
+pub use settings::VkSettings;
 pub use shader::read_shader_from_file;

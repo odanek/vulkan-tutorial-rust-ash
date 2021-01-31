@@ -1,10 +1,11 @@
 use winit::{dpi::PhysicalSize, window::Window};
 
-use ash::{Entry};
+use ash::{Entry, vk};
 
 use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice, render_pass::VkRenderPass, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain, swap_chain_sync::VkSwapChainSync};
 
 pub struct VkContext {
+    pub command_buffers: Vec<vk::CommandBuffer>,
     pub command_pool: VkCommandPool,
     pub render_pass: VkRenderPass,
     pub swap_chain: VkSwapChain,
@@ -43,12 +44,15 @@ impl VkContext {
 
         swap_chain.create_frame_buffers(&device, &render_pass);
 
-        let mut command_pool = VkCommandPool::new(&device);
-        command_pool.create_command_buffers(&device, swap_chain.framebuffers.len() as u32);
+        log::info!("Creating swap-chain command pool");
+        let command_pool = VkCommandPool::new(&device, device.graphics_queue_family);
+        log::info!("Creating swap-chain command buffers");
+        let command_buffers = command_pool.create_command_buffers(&device, swap_chain.framebuffers.len() as u32);
 
         let swap_chain_sync = VkSwapChainSync::new(&device, &swap_chain, 2);
 
         VkContext {
+            command_buffers,
             command_pool,
             render_pass,
             swap_chain,
@@ -64,7 +68,7 @@ impl VkContext {
 
     pub fn cleanup_swap_chain(&mut self) {
         self.swap_chain.cleanup_framebuffers(&self.device);
-        self.command_pool.clear_command_buffers(&self.device);        
+        self.command_pool.clear_command_buffers(&self.device, &mut self.command_buffers);
         self.render_pass.cleanup(&self.device);
         self.swap_chain.cleanup(&self.device);
     }
@@ -81,7 +85,7 @@ impl VkContext {
         self.render_pass = VkRenderPass::new(&self.device, &self.swap_chain);        
         self.swap_chain
             .create_frame_buffers(&self.device, &self.render_pass);
-        self.command_pool
+        self.command_buffers = self.command_pool
             .create_command_buffers(&self.device, self.swap_chain.framebuffers.len() as u32);
     }
 }
