@@ -1,4 +1,8 @@
-use crate::{app::App, render::Vertex, vulkan::{VkBuffer, VkContext, VkPipeline, VkSettings, read_shader_from_file}};
+use crate::{
+    app::App,
+    render::Vertex,
+    vulkan::{read_shader_from_file, VkBuffer, VkContext, VkPipeline, VkSettings},
+};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -41,7 +45,14 @@ impl HelloTriangleApp {
         );
 
         let vertex_buffer_size = (VERTICES.len() * std::mem::size_of::<Vertex>()) as u64;
-        let vertex_buffer = VkBuffer::new(&vk_context.instance, &vk_context.physical_device, &vk_context.device, vertex_buffer_size);
+        let vertex_buffer = VkBuffer::new(
+            &vk_context.instance,
+            &vk_context.physical_device,
+            &vk_context.device,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            vertex_buffer_size,
+        );
         vertex_buffer.map_memory(&vk_context.device, &VERTICES);
 
         let app = HelloTriangleApp {

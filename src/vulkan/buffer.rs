@@ -15,10 +15,12 @@ impl VkBuffer {
         instance: &ash::Instance,
         physical_device: &VkPhysicalDevice,
         device: &VkDevice,
+        usage: vk::BufferUsageFlags,
+        properties: vk::MemoryPropertyFlags,
         size: u64,
     ) -> VkBuffer {
-        let handle = create_vertex_buffer(device, size);
-        let memory = assign_buffer_memory(instance, physical_device, device, handle);
+        let handle = create_vertex_buffer(device, usage, size);
+        let memory = assign_buffer_memory(instance, physical_device, device, handle, properties);
 
         VkBuffer {
             handle,
@@ -49,10 +51,10 @@ impl VkBuffer {
     }
 }
 
-fn create_vertex_buffer(device: &VkDevice, size: u64) -> vk::Buffer {
+fn create_vertex_buffer(device: &VkDevice, usage: vk::BufferUsageFlags, size: u64) -> vk::Buffer {
     let buffer_info = vk::BufferCreateInfo::builder()
         .size(size)
-        .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
+        .usage(usage)
         .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
     unsafe {
@@ -68,12 +70,14 @@ fn assign_buffer_memory(
     physical_device: &VkPhysicalDevice,
     device: &VkDevice,
     buffer: vk::Buffer,
+    properties: vk::MemoryPropertyFlags
 ) -> vk::DeviceMemory {
     let mem_requirements = unsafe { device.handle.get_buffer_memory_requirements(buffer) };
+    let physical_mem_properties = physical_device.get_mem_properties(instance);
     let mem_type_index = find_memory_type(
         mem_requirements,
-        physical_device.get_mem_properties(instance),
-        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        physical_mem_properties,
+        properties,
     );
 
     let alloc_info = vk::MemoryAllocateInfo::builder()
