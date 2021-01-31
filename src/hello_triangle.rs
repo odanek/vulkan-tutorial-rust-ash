@@ -1,10 +1,4 @@
-use std::mem::align_of;
-
-use crate::{
-    app::App,
-    render::Vertex,
-    vulkan::{read_shader_from_file, VkContext, VkDevice, VkPipeline, VkSettings},
-};
+use crate::{app::App, render::Vertex, vulkan::{VkBuffer, VkContext, VkPipeline, VkSettings, read_shader_from_file}};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -24,8 +18,7 @@ const VERTICES: [Vertex; 3] = [
 ];
 
 pub struct HelloTriangleApp {
-    vertex_buffer_memory: vk::DeviceMemory,
-    vertex_buffer: vk::Buffer,
+    vertex_buffer: VkBuffer,
     pipeline: VkPipeline,
     vertex_shader_module: vk::ShaderModule,
     fragment_shader_module: vk::ShaderModule,
@@ -48,12 +41,10 @@ impl HelloTriangleApp {
         );
 
         let vertex_buffer_size = (VERTICES.len() * std::mem::size_of::<Vertex>()) as u64;
-        let vertex_buffer = Self::create_vertex_buffer(&vk_context.device, vertex_buffer_size);
-        let vertex_buffer_memory = Self::assign_buffer_memory(&vk_context, vertex_buffer);
-        Self::map_buffer_memory(&vk_context.device, vertex_buffer_memory, vertex_buffer_size);        
+        let vertex_buffer = VkBuffer::new(&vk_context.instance, &vk_context.physical_device, &vk_context.device, vertex_buffer_size);
+        vertex_buffer.map_memory(&vk_context.device, &VERTICES);
 
         let app = HelloTriangleApp {
-            vertex_buffer_memory,
             vertex_buffer,
             pipeline,
             vertex_shader_module,
@@ -63,70 +54,6 @@ impl HelloTriangleApp {
         app.record_commands();
 
         app
-    }
-
-    fn create_vertex_buffer(device: &VkDevice, size: u64) -> vk::Buffer {
-        let buffer_info = vk::BufferCreateInfo::builder()
-            .size(size)
-            .usage(vk::BufferUsageFlags::VERTEX_BUFFER)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
-        unsafe {
-            device
-                .handle
-                .create_buffer(&buffer_info, None)
-                .expect("Unable to create vertex buffer")
-        }
-    }
-
-    fn assign_buffer_memory(context: &VkContext, buffer: vk::Buffer) -> vk::DeviceMemory {
-        let instance = &context.instance;
-        let physical_device = &context.physical_device;
-        let device = &context.device;
-
-        let mem_requirements = unsafe { device.handle.get_buffer_memory_requirements(buffer) };
-        let mem_type_index = Self::find_memory_type(
-            mem_requirements,
-            physical_device.get_mem_properties(instance),
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        );
-
-        let alloc_info = vk::MemoryAllocateInfo::builder()
-            .allocation_size(mem_requirements.size)
-            .memory_type_index(mem_type_index)
-            .build();
-        let memory = unsafe {
-            let vertex_buffer_memory = device.allocate_memory(&alloc_info, None).expect("Unable to allocate buffer memory");
-            device.bind_buffer_memory(buffer, vertex_buffer_memory, 0).expect("Unable to bind image memory");
-            vertex_buffer_memory
-        };
-        memory
-    }
-
-    fn find_memory_type(
-        requirements: vk::MemoryRequirements,
-        mem_properties: vk::PhysicalDeviceMemoryProperties,
-        required_properties: vk::MemoryPropertyFlags,
-    ) -> u32 {
-        for i in 0..mem_properties.memory_type_count {
-            if requirements.memory_type_bits & (1 << i) != 0
-                && mem_properties.memory_types[i as usize]
-                    .property_flags
-                    .contains(required_properties)
-            {
-                return i;
-            }
-        }
-        panic!("Failed to find suitable memory type.")
-    }
-
-    fn map_buffer_memory(device: &VkDevice, buffer_memory: vk::DeviceMemory, size: u64) {
-        unsafe {
-            let data = device.handle.map_memory(buffer_memory, 0, size, vk::MemoryMapFlags::empty()).expect("Unable to map memory");
-            let mut align = ash::util::Align::new(data, align_of::<u8>() as _, size);
-            align.copy_from_slice(&VERTICES);
-            device.unmap_memory(buffer_memory);
-        }
     }
 
     pub fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
@@ -186,7 +113,7 @@ impl HelloTriangleApp {
                     self.pipeline.handle,
                 );
 
-                let buffers = [self.vertex_buffer];
+                let buffers = [self.vertex_buffer.handle];
                 let offsets = [0 as vk::DeviceSize];
                 device.cmd_bind_vertex_buffers(buffer, 0, &buffers, &offsets);
 
@@ -302,15 +229,7 @@ impl App for HelloTriangleApp {
 impl Drop for HelloTriangleApp {
     fn drop(&mut self) {
         let context = &self.vk_context;
-        unsafe {
-            context
-                .device
-                .handle
-                .destroy_buffer(self.vertex_buffer, None);
-        }
-        unsafe {
-            context.device.handle.free_memory(self.vertex_buffer_memory, None);
-        }
+        self.vertex_buffer.cleanup(&context.device);
         self.pipeline.cleanup(&context.device);
         unsafe {
             context

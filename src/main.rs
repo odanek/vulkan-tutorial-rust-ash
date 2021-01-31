@@ -80,3 +80,5 @@ fn create_window(size: &PhysicalSize<u32>) -> (EventLoop<()>, Window) {
 // https://stevedonovan.github.io/rustifications/2018/08/18/rust-closures-are-hard.html
 // https://github.com/pretzelhammer/rust-blog/blob/master/posts/common-rust-lifetime-misconceptions.md
 // Struct<'a> -> muzu na ni drzet referenci maximalne po 'a, i.e. Struct<'static> -> muzu na ni drzet referenci jak dlouho chci
+
+// Preskladat pak a namodelovat podle wgpu-rs hello triangle

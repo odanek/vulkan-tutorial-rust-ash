@@ -1,3 +1,4 @@
+mod buffer;
 mod command;
 mod context;
 mod debug;
@@ -17,6 +18,7 @@ mod swap_chain_sync;
 mod utils;
 mod version;
 
+pub use buffer::VkBuffer;
 pub use context::VkContext;
 pub use settings::VkSettings;
 pub use pipeline::VkPipeline;
