@@ -25,4 +25,4 @@ pub use device::VkDevice;
 pub use physical_device::VkPhysicalDevice;
 pub use pipeline::VkPipeline;
 pub use settings::VkSettings;
-pub use shader::read_shader_from_file;
+pub use shader::VkShaderModule;

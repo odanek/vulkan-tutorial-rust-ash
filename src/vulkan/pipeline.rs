@@ -1,10 +1,8 @@
-use std::ffi::CString;
-
 use ash::{version::DeviceV1_0, vk};
 
 use crate::render::Vertex;
 
-use super::{device::VkDevice, render_pass::VkRenderPass, swap_chain::VkSwapChain};
+use super::{VkShaderModule, device::VkDevice, render_pass::VkRenderPass, swap_chain::VkSwapChain};
 
 use memoffset::offset_of;
 
@@ -18,23 +16,14 @@ impl VkPipeline {
         device: &VkDevice,
         swap_chain: &VkSwapChain,
         render_pass: &VkRenderPass,
-        vertex_shader_module: vk::ShaderModule,
-        fragment_shader_module: vk::ShaderModule,
+        vertex_shader_module: &VkShaderModule,
+        fragment_shader_module: &VkShaderModule,
     ) -> VkPipeline {
         log::info!("Creating pipeline");
-
-        let entry_point_name = CString::new("main").unwrap();
-        let vertex_shader_stage_info = create_shader_stage(
-            vk::ShaderStageFlags::VERTEX,
-            vertex_shader_module,
-            &entry_point_name,
-        );
-        let fragment_shader_stage_info = create_shader_stage(
-            vk::ShaderStageFlags::FRAGMENT,
-            fragment_shader_module,
-            &entry_point_name,
-        );
-        let shader_stages = [vertex_shader_stage_info, fragment_shader_stage_info];
+        
+        let vertex_shader_stage_info = vertex_shader_module.create_pipeline_shader_stage();
+        let fragment_shader_stage_info = fragment_shader_module.create_pipeline_shader_stage();
+        let shader_stages = [vertex_shader_stage_info.build(), fragment_shader_stage_info.build()];
 
         // TODO: Where to put this?
         let vertex_input_binding = create_vertex_input_binding_description();
@@ -147,18 +136,6 @@ impl VkPipeline {
             handle.destroy_pipeline_layout(self.layout, None);            
         }
     }
-}
-
-fn create_shader_stage(
-    stage: vk::ShaderStageFlags,
-    module: vk::ShaderModule,
-    entry_point: &CString,
-) -> vk::PipelineShaderStageCreateInfo {
-    vk::PipelineShaderStageCreateInfo::builder()
-        .stage(stage)
-        .module(module)
-        .name(&entry_point)
-        .build()
 }
 
 fn create_vertex_input_binding_description() -> vk::VertexInputBindingDescription {

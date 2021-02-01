@@ -2,8 +2,8 @@ use crate::{
     app::App,
     render::Vertex,
     vulkan::{
-        read_shader_from_file, VkBuffer, VkCommandPool, VkContext, VkDevice, VkPhysicalDevice,
-        VkPipeline, VkSettings,
+        VkBuffer, VkCommandPool, VkContext, VkDevice, VkPhysicalDevice, VkPipeline, VkSettings,
+        VkShaderModule,
     },
 };
 use ash::{version::DeviceV1_0, vk};
@@ -27,8 +27,8 @@ const VERTICES: [Vertex; 3] = [
 pub struct TutorialApp {
     vertex_buffer: VkBuffer,
     pipeline: VkPipeline,
-    vertex_shader_module: vk::ShaderModule,
-    fragment_shader_module: vk::ShaderModule,
+    vertex_shader_module: VkShaderModule,
+    fragment_shader_module: VkShaderModule,
     vk_context: VkContext,
 }
 
@@ -36,22 +36,41 @@ impl TutorialApp {
     pub fn new(window: &Window) -> TutorialApp {
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
+        let VkContext {
+            ref instance,
+            ref physical_device,
+            ref device,
+            ref command_pool,
+            ref swap_chain,
+            ref render_pass,
+            ..
+        } = vk_context;
 
-        let vertex_shader_module = read_shader_from_file("shader/vert.spv", &vk_context.device);
-        let fragment_shader_module = read_shader_from_file("shader/frag.spv", &vk_context.device);
+        let vertex_shader_module = VkShaderModule::new_from_file(
+            device,
+            vk::ShaderStageFlags::VERTEX,
+            "shader/vert.spv",
+            "main",
+        );
+        let fragment_shader_module = VkShaderModule::new_from_file(
+            device,
+            vk::ShaderStageFlags::FRAGMENT,
+            "shader/frag.spv",
+            "main",
+        );
         let pipeline = VkPipeline::new(
-            &vk_context.device,
-            &vk_context.swap_chain,
-            &vk_context.render_pass,
-            vertex_shader_module,
-            fragment_shader_module,
+            device,
+            swap_chain,
+            render_pass,
+            &vertex_shader_module,
+            &fragment_shader_module,
         );
         let vertex_buffer = Self::create_vertex_buffer(
-            &vk_context.instance,
-            &vk_context.physical_device,
-            &vk_context.device,
-            &vk_context.command_pool,
-            vk_context.device.graphics_queue
+            instance,
+            physical_device,
+            device,
+            command_pool,
+            device.graphics_queue,
         );
 
         let app = TutorialApp {
@@ -76,8 +95,8 @@ impl TutorialApp {
             &context.device,
             &context.swap_chain,
             &context.render_pass,
-            self.vertex_shader_module,
-            self.fragment_shader_module,
+            &self.vertex_shader_module,
+            &self.fragment_shader_module,
         );
         self.record_commands();
     }
@@ -274,17 +293,11 @@ impl App for TutorialApp {
 impl Drop for TutorialApp {
     fn drop(&mut self) {
         let context = &self.vk_context;
-        self.vertex_buffer.cleanup(&context.device);
-        self.pipeline.cleanup(&context.device);
-        unsafe {
-            context
-                .device
-                .handle
-                .destroy_shader_module(self.vertex_shader_module, None);
-            context
-                .device
-                .handle
-                .destroy_shader_module(self.fragment_shader_module, None);
-        }
+        let device = &context.device;
+
+        self.vertex_buffer.cleanup(&device);
+        self.pipeline.cleanup(&device);
+        self.vertex_shader_module.cleanup(device);
+        self.fragment_shader_module.cleanup(device);
     }
 }
