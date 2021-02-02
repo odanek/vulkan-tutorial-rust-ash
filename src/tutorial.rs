@@ -9,22 +9,29 @@ use crate::{
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
-const VERTICES: [Vertex; 3] = [
+const VERTICES: [Vertex; 4] = [
     Vertex {
-        position: [0.0, -0.5, 0.0],
+        position: [-0.5, -0.5, 0.0],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
-        position: [0.5, 0.5, 0.0],
+        position: [0.5, -0.5, 0.0],
         color: [0.0, 1.0, 0.0],
     },
     Vertex {
-        position: [-0.5, 0.5, 0.0],
+        position: [0.5, 0.5, 0.0],
         color: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, 0.0],
+        color: [1.0, 0.0, 1.0],
     },
 ];
 
+const INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
+
 pub struct TutorialApp {
+    index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
     pipeline: VkPipeline,
     vertex_shader_module: VkShaderModule,
@@ -65,15 +72,27 @@ impl TutorialApp {
             &vertex_shader_module,
             &fragment_shader_module,
         );
-        let vertex_buffer = Self::create_vertex_buffer(
+        let vertex_buffer = Self::create_buffer(
             instance,
             physical_device,
             device,
             command_pool,
             device.graphics_queue,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            &VERTICES
+        );
+        let index_buffer = Self::create_buffer(
+            instance,
+            physical_device,
+            device,
+            command_pool,
+            device.graphics_queue,
+            vk::BufferUsageFlags::INDEX_BUFFER,
+            &INDICES
         );
 
         let app = TutorialApp {
+            index_buffer,
             vertex_buffer,
             pipeline,
             vertex_shader_module,
@@ -101,14 +120,16 @@ impl TutorialApp {
         self.record_commands();
     }
 
-    fn create_vertex_buffer(
+    fn create_buffer<T: Copy>(
         instance: &ash::Instance,
         physical_device: &VkPhysicalDevice,
         device: &VkDevice,
         command_pool: &VkCommandPool,
         queue: vk::Queue,
+        usage: vk::BufferUsageFlags,
+        data: &[T]
     ) -> VkBuffer {
-        let size = (VERTICES.len() * std::mem::size_of::<Vertex>()) as u64;
+        let size = (data.len() * std::mem::size_of::<T>()) as u64;
         log::info!("creating vertex buffer of size {}", size);
 
         let staging_buffer = VkBuffer::new(
@@ -119,13 +140,13 @@ impl TutorialApp {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
             size,
         );
-        staging_buffer.map_memory(device, &VERTICES);
+        staging_buffer.map_memory(device, data);
 
         let vertex_buffer = VkBuffer::new(
             instance,
             physical_device,
             device,
-            vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_DST,
+            usage | vk::BufferUsageFlags::TRANSFER_DST,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
             size,
         );
@@ -180,11 +201,9 @@ impl TutorialApp {
                 let buffers = [self.vertex_buffer.handle];
                 let offsets = [0 as vk::DeviceSize];
                 device.cmd_bind_vertex_buffers(buffer, 0, &buffers, &offsets);
-
-                device.cmd_draw(buffer, VERTICES.len() as u32, 1, 0, 0);
-
+                device.cmd_bind_index_buffer(buffer, self.index_buffer.handle, 0, vk::IndexType::UINT16);
+                device.cmd_draw_indexed(buffer, INDICES.len() as u32, 1, 0, 0, 0);
                 device.cmd_end_render_pass(buffer);
-
                 device
                     .end_command_buffer(buffer)
                     .expect("Failed to record end of command buffer");
@@ -295,6 +314,7 @@ impl Drop for TutorialApp {
         let context = &self.vk_context;
         let device = &context.device;
 
+        self.index_buffer.cleanup(&device);
         self.vertex_buffer.cleanup(&device);
         self.pipeline.cleanup(&device);
         self.vertex_shader_module.cleanup(device);
