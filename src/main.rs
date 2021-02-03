@@ -1,3 +1,5 @@
+// #![windows_subsystem = "windows"]
+
 mod app;
 mod tutorial;
 mod logger;
@@ -80,5 +82,7 @@ fn create_window(size: &PhysicalSize<u32>) -> (EventLoop<()>, Window) {
 // https://stevedonovan.github.io/rustifications/2018/08/18/rust-closures-are-hard.html
 // https://github.com/pretzelhammer/rust-blog/blob/master/posts/common-rust-lifetime-misconceptions.md
 // Struct<'a> -> muzu na ni drzet referenci maximalne po 'a, i.e. Struct<'static> -> muzu na ni drzet referenci jak dlouho chci
+
+// Minimize number of allocations and buffers, use offsets: https://developer.nvidia.com/vulkan-memory-management
 
 // Preskladat pak a namodelovat podle wgpu-rs hello triangle

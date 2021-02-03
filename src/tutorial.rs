@@ -1,30 +1,26 @@
-use crate::{
-    app::App,
-    render::Vertex,
-    vulkan::{
+use crate::{app::App, render::{Vec3, Vertex}, vulkan::{
         VkBuffer, VkCommandPool, VkContext, VkDevice, VkPhysicalDevice, VkPipeline, VkSettings,
         VkShaderModule,
-    },
-};
+    }};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
 const VERTICES: [Vertex; 4] = [
     Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
+        position: Vec3::new(-0.5, -0.5, 0.0),
+        color: Vec3::new(1.0, 0.0, 0.0),
     },
     Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 1.0, 0.0],
+        position: Vec3::new(0.5, -0.5, 0.0),
+        color: Vec3::new(0.0, 1.0, 0.0),
     },
     Vertex {
-        position: [0.5, 0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
+        position: Vec3::new(0.5, 0.5, 0.0),
+        color: Vec3::new(0.0, 0.0, 1.0),
     },
     Vertex {
-        position: [-0.5, 0.5, 0.0],
-        color: [1.0, 0.0, 1.0],
+        position: Vec3::new(-0.5, 0.5, 0.0),
+        color: Vec3::new(1.0, 0.0, 1.0),
     },
 ];
 

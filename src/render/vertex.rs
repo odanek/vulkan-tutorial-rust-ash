@@ -1,6 +1,8 @@
+use super::Vec3;
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct Vertex {
-    pub position: [f32; 3],
-    pub color: [f32; 3],
+    pub position: Vec3,
+    pub color: Vec3,
 }
