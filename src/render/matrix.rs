@@ -3,12 +3,12 @@ use std::ops;
 use super::Vec3;
 
 #[derive(Clone, Copy)]
-#[repr(C)]
+#[repr(transparent)]
 pub struct Mat4 {
     data: [f32; 16]
 }
 
-pub const IDENTITY4: Mat4 = Mat4 {
+pub const IDENT4: Mat4 = Mat4 {
     data: [
         1.0, 0.0, 0.0, 0.0, 
         0.0, 1.0, 0.0, 0.0,
@@ -41,7 +41,94 @@ impl Mat4 {
     }
 
     pub fn rotate(radians: f32, axis: Vec3) -> Mat4 {
-        // TODO
+        let c = radians.cos();
+        let mc = 1.0 - c;
+        let s = radians.sin();
+
+        let x = axis.x();
+        let y = axis.y();
+        let z = axis.z();
+
+        Mat4 {
+            data: [
+                x * x * mc + c, x * y * mc + z * s, x * z * mc - y * s, 0.0,
+                x * y * mc - z * s, y * y * mc + c, y * z * mc + x * s, 0.0,
+                x * z * mc + y * s, y * z * mc - x * s, z * z * mc + c, 0.0,
+                0.0, 0.0, 0.0, 1.0
+            ]
+        }
+    }
+
+    pub fn rotate_x(radians: f32) -> Mat4 {
+        let s = radians.sin();
+        let c = radians.cos();
+
+        Mat4 {
+            data:[
+                1.0, 0.0, 0.0, 0.0,
+                0.0, c, s, 0.0,
+                0.0, -s, c, 0.0,
+                0.0, 0.0, 0.0, 1.0
+            ]
+        }
+    }
+
+    pub fn rotate_y(radians: f32) -> Mat4 {
+        let s = radians.sin();
+        let c = radians.cos();
+
+        Mat4 {
+            data:[
+                c, 0.0, -s, 0.0,
+                0.0, 1.0, 0.0, 0.0,
+                s, 0.0, c, 0.0,
+                0.0, 0.0, 0.0, 1.0
+            ]
+        }
+    }
+
+    pub fn rotate_z(radians: f32) -> Mat4 {
+        let s = radians.sin();
+        let c = radians.cos();
+
+        Mat4 {
+            data:[
+                c, s, 0.0, 0.0,
+                -s, c, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0
+            ]
+        }
+    }
+
+    pub fn perspective(fov: f32, aspect: f32, near_clip: f32, far_clip: f32) -> Mat4 {
+        let half_fov = fov / 2.0;
+        let f = half_fov.cos() / half_fov.sin();
+        let d = near_clip - far_clip;
+
+        Mat4 {
+            data: [
+                f / aspect, 0.0, 0.0, 0.0,
+                0.0, f, 0.0, 0.0,
+                0.0, 0.0, (near_clip + far_clip) / d, -1.0,
+                0.0, 0.0, (2.0 * near_clip * far_clip) / d, 0.0
+            ]
+        }
+    }
+
+    pub fn ortho(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) -> Mat4 {
+        let x = right - left;
+        let y= top - bottom;
+        let z= far - near;
+
+        Mat4 {
+            data: [
+                2.0 / x, 0.0, 0.0, 0.0,
+                0.0, 2.0 / y, 0.0, 0.0,
+                0.0, 0.0, -2.0 / z, 0.0,
+                (left + right) / -x, (bottom + top) / -y, (near + far) / -z, 1.0
+            ]
+        }
     }
 }
 
@@ -72,10 +159,10 @@ impl ops::Add<Mat4> for Mat4 {
     }
 }
 
-impl ops::Mul<Mat4> for Mat4 {
+impl ops::Mul<&Mat4> for &Mat4 {
     type Output = Mat4;
 
-    fn mul(self, rhs: Mat4) -> Self::Output {
+    fn mul(self, rhs: &Mat4) -> Self::Output {
         let mut data: [f32; 16] = [0f32; 16]; // TODO Not necessary
         let mut index = 0usize;
 
