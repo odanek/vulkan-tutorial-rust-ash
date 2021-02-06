@@ -2,7 +2,7 @@ use ash::{version::DeviceV1_0, vk};
 
 use crate::render::Vertex;
 
-use super::{VkShaderModule, device::VkDevice, render_pass::VkRenderPass, swap_chain::VkSwapChain};
+use super::{device::VkDevice, render_pass::VkRenderPass, swap_chain::VkSwapChain, VkShaderModule};
 
 use memoffset::offset_of;
 
@@ -18,12 +18,16 @@ impl VkPipeline {
         render_pass: &VkRenderPass,
         vertex_shader_module: &VkShaderModule,
         fragment_shader_module: &VkShaderModule,
+        descriptor_set_layouts: &[vk::DescriptorSetLayout],
     ) -> VkPipeline {
         log::info!("Creating pipeline");
-        
+
         let vertex_shader_stage_info = vertex_shader_module.create_pipeline_shader_stage();
         let fragment_shader_stage_info = fragment_shader_module.create_pipeline_shader_stage();
-        let shader_stages = [vertex_shader_stage_info.build(), fragment_shader_stage_info.build()];
+        let shader_stages = [
+            vertex_shader_stage_info.build(),
+            fragment_shader_stage_info.build(),
+        ];
 
         // TODO: Where to put this?
         let vertex_input_binding = create_vertex_input_binding_description();
@@ -93,7 +97,8 @@ impl VkPipeline {
             .attachments(&color_blend_attachments)
             .blend_constants([0.0, 0.0, 0.0, 0.0]);
 
-        let layout_info = vk::PipelineLayoutCreateInfo::builder();
+        let layout_info =
+            vk::PipelineLayoutCreateInfo::builder().set_layouts(descriptor_set_layouts);
         let layout = unsafe {
             device
                 .handle
@@ -121,10 +126,7 @@ impl VkPipeline {
                 .expect("Unable t ocreate graphics pipelines")[0]
         };
 
-        VkPipeline {
-            layout,
-            handle,
-        }
+        VkPipeline { layout, handle }
     }
 
     pub fn cleanup(&self, device: &VkDevice) {
@@ -133,7 +135,7 @@ impl VkPipeline {
         let handle = &device.handle;
         unsafe {
             handle.destroy_pipeline(self.handle, None);
-            handle.destroy_pipeline_layout(self.layout, None);            
+            handle.destroy_pipeline_layout(self.layout, None);
         }
     }
 }

@@ -1,7 +1,11 @@
-use crate::{app::App, render::{Vec3, Vertex}, vulkan::{
+use crate::{
+    app::App,
+    render::{Mat4, Vec3, Vertex},
+    vulkan::{
         VkBuffer, VkCommandPool, VkContext, VkDevice, VkPhysicalDevice, VkPipeline, VkSettings,
         VkShaderModule,
-    }};
+    },
+};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -26,10 +30,17 @@ const VERTICES: [Vertex; 4] = [
 
 const INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
+struct UniformBufferObject {
+    model: Mat4,
+    view: Mat4,
+    proj: Mat4,
+}
+
 pub struct TutorialApp {
     index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
     pipeline: VkPipeline,
+    descriptor_set_layout: vk::DescriptorSetLayout,
     vertex_shader_module: VkShaderModule,
     fragment_shader_module: VkShaderModule,
     vk_context: VkContext,
@@ -61,12 +72,14 @@ impl TutorialApp {
             "shader/frag.spv",
             "main",
         );
+        let descriptor_set_layout = Self::create_descriptor_set_layout(device);
         let pipeline = VkPipeline::new(
             device,
             swap_chain,
             render_pass,
             &vertex_shader_module,
             &fragment_shader_module,
+            &[descriptor_set_layout]
         );
         let vertex_buffer = Self::create_buffer(
             instance,
@@ -75,7 +88,7 @@ impl TutorialApp {
             command_pool,
             device.graphics_queue,
             vk::BufferUsageFlags::VERTEX_BUFFER,
-            &VERTICES
+            &VERTICES,
         );
         let index_buffer = Self::create_buffer(
             instance,
@@ -84,13 +97,14 @@ impl TutorialApp {
             command_pool,
             device.graphics_queue,
             vk::BufferUsageFlags::INDEX_BUFFER,
-            &INDICES
+            &INDICES,
         );
 
         let app = TutorialApp {
             index_buffer,
             vertex_buffer,
             pipeline,
+            descriptor_set_layout,
             vertex_shader_module,
             fragment_shader_module,
             vk_context,
@@ -100,7 +114,7 @@ impl TutorialApp {
         app
     }
 
-    pub fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
+    fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
         let context = &mut self.vk_context;
         context.device.wait_idle();
         self.pipeline.cleanup(&context.device);
@@ -112,8 +126,23 @@ impl TutorialApp {
             &context.render_pass,
             &self.vertex_shader_module,
             &self.fragment_shader_module,
+            &[self.descriptor_set_layout]
         );
         self.record_commands();
+    }
+
+    fn create_descriptor_set_layout(device: &VkDevice) -> vk::DescriptorSetLayout {
+        let ubo_layout_binding = vk::DescriptorSetLayoutBinding::builder()
+            .binding(0)
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::VERTEX);
+        let bindings = [ubo_layout_binding.build()];
+        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings);
+
+        unsafe {
+            device.handle.create_descriptor_set_layout(&layout_info, None).expect("Unable to create descriptor set layout")
+        }
     }
 
     fn create_buffer<T: Copy>(
@@ -123,7 +152,7 @@ impl TutorialApp {
         command_pool: &VkCommandPool,
         queue: vk::Queue,
         usage: vk::BufferUsageFlags,
-        data: &[T]
+        data: &[T],
     ) -> VkBuffer {
         let size = (data.len() * std::mem::size_of::<T>()) as u64;
         log::info!("creating vertex buffer of size {}", size);
@@ -197,7 +226,12 @@ impl TutorialApp {
                 let buffers = [self.vertex_buffer.handle];
                 let offsets = [0 as vk::DeviceSize];
                 device.cmd_bind_vertex_buffers(buffer, 0, &buffers, &offsets);
-                device.cmd_bind_index_buffer(buffer, self.index_buffer.handle, 0, vk::IndexType::UINT16);
+                device.cmd_bind_index_buffer(
+                    buffer,
+                    self.index_buffer.handle,
+                    0,
+                    vk::IndexType::UINT16,
+                );
                 device.cmd_draw_indexed(buffer, INDICES.len() as u32, 1, 0, 0, 0);
                 device.cmd_end_render_pass(buffer);
                 device
@@ -313,6 +347,11 @@ impl Drop for TutorialApp {
         self.index_buffer.cleanup(&device);
         self.vertex_buffer.cleanup(&device);
         self.pipeline.cleanup(&device);
+        
+        unsafe {
+            device.handle.destroy_descriptor_set_layout(self.descriptor_set_layout, None);
+        }
+
         self.vertex_shader_module.cleanup(device);
         self.fragment_shader_module.cleanup(device);
     }

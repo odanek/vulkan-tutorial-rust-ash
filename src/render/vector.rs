@@ -1,15 +1,25 @@
 use std::ops;
 
+use super::Mat4;
+
 #[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Vec3 {
     data: [f32; 3],
 }
 
-pub const ZERO3: Vec3 = Vec3 { data: [0.0, 0.0, 0.0] };
-pub const X3: Vec3 = Vec3 { data: [1.0, 0.0, 0.0] };
-pub const Y3: Vec3 = Vec3 { data: [0.0, 1.0, 0.0] };
-pub const Z3: Vec3 = Vec3 { data: [0.0, 0.0, 1.0] };
+pub const ZERO3: Vec3 = Vec3 {
+    data: [0.0, 0.0, 0.0],
+};
+pub const X3: Vec3 = Vec3 {
+    data: [1.0, 0.0, 0.0],
+};
+pub const Y3: Vec3 = Vec3 {
+    data: [0.0, 1.0, 0.0],
+};
+pub const Z3: Vec3 = Vec3 {
+    data: [0.0, 0.0, 1.0],
+};
 
 impl Vec3 {
     pub const fn new(x: f32, y: f32, z: f32) -> Vec3 {
@@ -56,9 +66,45 @@ impl Vec3 {
         self / self.length()
     }
 
+    pub fn translation_mat(&self) -> Mat4 {
+        Mat4::vec_translate(self)
+    }
+
+    pub fn scale_mat(&self) -> Mat4 {
+        Mat4::vec_scale(self)
+    }
+
+    pub fn rotation_mat(&self, radians: f32) -> Mat4 {
+        Mat4::rotate(radians, self)
+    }
+
     // pub fn angle(&self) -> f32 {
-        // self.data[1].atan2(self.data[0])
+    // self.data[1].atan2(self.data[0])
     // }
+}
+
+impl ops::Add<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn add(self, rhs: Vec3) -> Self::Output {
+        &self + &rhs
+    }
+}
+
+impl ops::Add<Vec3> for &Vec3 {
+    type Output = Vec3;
+
+    fn add(self, rhs: Vec3) -> Self::Output {
+        self + &rhs
+    }
+}
+
+impl ops::Add<&Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn add(self, rhs: &Vec3) -> Self::Output {
+        &self + rhs
+    }
 }
 
 impl ops::Add<&Vec3> for &Vec3 {
@@ -72,6 +118,30 @@ impl ops::Add<&Vec3> for &Vec3 {
                 self.data[2] + rhs.data[2],
             ],
         }
+    }
+}
+
+impl ops::Sub<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, rhs: Vec3) -> Self::Output {
+        &self - &rhs
+    }
+}
+
+impl ops::Sub<Vec3> for &Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, rhs: Vec3) -> Self::Output {
+        self - &rhs
+    }
+}
+
+impl ops::Sub<&Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, rhs: &Vec3) -> Self::Output {
+        &self - rhs
     }
 }
 
@@ -89,6 +159,14 @@ impl ops::Sub<&Vec3> for &Vec3 {
     }
 }
 
+impl ops::Mul<f32> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        &self * rhs
+    }
+}
+
 impl ops::Mul<f32> for &Vec3 {
     type Output = Vec3;
 
@@ -96,6 +174,14 @@ impl ops::Mul<f32> for &Vec3 {
         Vec3 {
             data: [self.data[0] * rhs, self.data[1] * rhs, self.data[2] * rhs],
         }
+    }
+}
+
+impl ops::Mul<Vec3> for f32 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        self * &rhs
     }
 }
 
@@ -109,6 +195,14 @@ impl ops::Mul<&Vec3> for f32 {
     }
 }
 
+impl ops::Div<f32> for Vec3 {
+    type Output = Vec3;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        &self / rhs
+    }
+}
+
 impl ops::Div<f32> for &Vec3 {
     type Output = Vec3;
 
@@ -119,17 +213,42 @@ impl ops::Div<f32> for &Vec3 {
     }
 }
 
+impl ops::Neg for Vec3 {
+    type Output = Vec3;
+
+    fn neg(self) -> Self::Output {
+        -(&self)
+    }
+}
+
+impl ops::Neg for &Vec3 {
+    type Output = Vec3;
+
+    fn neg(self) -> Self::Output {
+        Vec3 {
+            data: [-self.data[0], -self.data[1], -self.data[2]],
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Vec4 {
     data: [f32; 4],
 }
 
-pub const ZERO4H: Vec4 = Vec4 { data: [0.0, 0.0, 0.0, 1.0] };
-pub const X4H: Vec4 = Vec4 { data: [1.0, 0.0, 0.0, 1.0] };
-pub const Y4H: Vec4 = Vec4 { data: [0.0, 1.0, 0.0, 1.0] };
-pub const Z4H: Vec4 = Vec4 { data: [0.0, 0.0, 1.0, 1.0] };
-
+pub const ZERO4H: Vec4 = Vec4 {
+    data: [0.0, 0.0, 0.0, 1.0],
+};
+pub const X4H: Vec4 = Vec4 {
+    data: [1.0, 0.0, 0.0, 1.0],
+};
+pub const Y4H: Vec4 = Vec4 {
+    data: [0.0, 1.0, 0.0, 1.0],
+};
+pub const Z4H: Vec4 = Vec4 {
+    data: [0.0, 0.0, 1.0, 1.0],
+};
 
 impl Vec4 {
     pub const fn new(x: f32, y: f32, z: f32, w: f32) -> Vec4 {

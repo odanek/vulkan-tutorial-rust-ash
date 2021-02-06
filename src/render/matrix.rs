@@ -29,6 +29,10 @@ impl Mat4 {
         }
     }
 
+    pub fn vec_scale(vec: &Vec3) -> Mat4 {
+        Self::scale(vec.x(), vec.y(), vec.z())
+    }
+
     pub fn translate(x: f32, y: f32, z: f32) -> Mat4 {
         Mat4 {
             data: [
@@ -40,7 +44,11 @@ impl Mat4 {
         }
     }
 
-    pub fn rotate(radians: f32, axis: Vec3) -> Mat4 {
+    pub fn vec_translate(vec: &Vec3) -> Mat4 {
+        Self::translate(vec.x(), vec.y(), vec.z())
+    }
+
+    pub fn rotate(radians: f32, axis: &Vec3) -> Mat4 {
         let c = radians.cos();
         let mc = 1.0 - c;
         let s = radians.sin();
@@ -130,6 +138,20 @@ impl Mat4 {
             ]
         }
     }
+
+    pub fn look_at(eye: &Vec3, front: &Vec3, up: &Vec3) -> Mat4 {
+        let s = front.cross(up);
+        let u = s.cross(front);
+        let m = Mat4 {
+            data: [
+                s.x(), u.x(), -front.x(), 0.0,
+                s.y(), u.y(), -front.y(), 0.0,
+                s.z(), u.z(), -front.z(), 0.0,
+                0.0, 0.0, 0.0, 1.0
+            ]
+        };
+        m * (-eye).translation_mat()
+    }
 }
 
 impl ops::Add<Mat4> for Mat4 {
@@ -156,6 +178,30 @@ impl ops::Add<Mat4> for Mat4 {
                 self.data[15] + rhs.data[15],
             ]
         }
+    }
+}
+
+impl ops::Mul<Mat4> for Mat4 {
+    type Output = Mat4;
+
+    fn mul(self, rhs: Mat4) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl ops::Mul<&Mat4> for Mat4 {
+    type Output = Mat4;
+
+    fn mul(self, rhs: &Mat4) -> Self::Output {
+        &self * rhs
+    }
+}
+
+impl ops::Mul<Mat4> for &Mat4 {
+    type Output = Mat4;
+
+    fn mul(self, rhs: Mat4) -> Self::Output {
+        self * &rhs
     }
 }
 
