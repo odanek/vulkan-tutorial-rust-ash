@@ -2,8 +2,8 @@ use std::ops;
 
 use super::Vec3;
 
-#[derive(Clone, Copy)]
 #[repr(transparent)]
+#[derive(Clone, Copy)]
 pub struct Mat4 {
     data: [f32; 16]
 }

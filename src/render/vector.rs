@@ -2,8 +2,8 @@ use std::ops;
 
 use super::Mat4;
 
-#[derive(Clone, Copy)]
 #[repr(transparent)]
+#[derive(Clone, Copy)]
 pub struct Vec3 {
     data: [f32; 3],
 }
@@ -231,8 +231,8 @@ impl ops::Neg for &Vec3 {
     }
 }
 
-#[derive(Clone, Copy)]
 #[repr(transparent)]
+#[derive(Clone, Copy)]
 pub struct Vec4 {
     data: [f32; 4],
 }
