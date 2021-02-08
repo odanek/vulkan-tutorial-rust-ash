@@ -1,13 +1,14 @@
 use std::ops;
 
-use super::Vec3;
+use super::{Vec3, Vec4};
 
 #[repr(transparent)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Mat4 {
     data: [f32; 16]
 }
 
+#[cfg_attr(rustfmt, rustfmt::skip)]
 pub const IDENT4: Mat4 = Mat4 {
     data: [
         1.0, 0.0, 0.0, 0.0, 
@@ -20,6 +21,7 @@ pub const IDENT4: Mat4 = Mat4 {
 impl Mat4 {
     pub fn scale(x: f32, y: f32, z: f32) -> Mat4 {
         Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data: [
                 x, 0.0, 0.0, 0.0,
                 0.0, y, 0.0, 0.0,
@@ -35,11 +37,12 @@ impl Mat4 {
 
     pub fn translate(x: f32, y: f32, z: f32) -> Mat4 {
         Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data: [
-                1.0, 0.0, 0.0, x, 
-                0.0, 1.0, 0.0, y,
-                0.0, 0.0, 1.0, z,
-                0.0, 0.0, 0.0, 1.0
+                1.0, 0.0, 0.0, 0.0, 
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                x, y, z, 1.0
             ]            
         }
     }
@@ -58,6 +61,7 @@ impl Mat4 {
         let z = axis.z();
 
         Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data: [
                 x * x * mc + c, x * y * mc + z * s, x * z * mc - y * s, 0.0,
                 x * y * mc - z * s, y * y * mc + c, y * z * mc + x * s, 0.0,
@@ -72,6 +76,7 @@ impl Mat4 {
         let c = radians.cos();
 
         Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data:[
                 1.0, 0.0, 0.0, 0.0,
                 0.0, c, s, 0.0,
@@ -86,6 +91,7 @@ impl Mat4 {
         let c = radians.cos();
 
         Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data:[
                 c, 0.0, -s, 0.0,
                 0.0, 1.0, 0.0, 0.0,
@@ -100,6 +106,7 @@ impl Mat4 {
         let c = radians.cos();
 
         Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data:[
                 c, s, 0.0, 0.0,
                 -s, c, 0.0, 0.0,
@@ -112,14 +119,15 @@ impl Mat4 {
     pub fn perspective(fov: f32, aspect: f32, near_clip: f32, far_clip: f32) -> Mat4 {
         let half_fov = fov / 2.0;
         let f = half_fov.cos() / half_fov.sin();
-        let d = near_clip - far_clip;
+        let d = far_clip - near_clip;
 
         Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data: [
                 f / aspect, 0.0, 0.0, 0.0,
-                0.0, f, 0.0, 0.0,
-                0.0, 0.0, (near_clip + far_clip) / d, -1.0,
-                0.0, 0.0, (2.0 * near_clip * far_clip) / d, 0.0
+                0.0, -f, 0.0, 0.0,
+                0.0, 0.0, near_clip / d, -1.0,
+                0.0, 0.0, (near_clip * far_clip) / d, 0.0
             ]
         }
     }
@@ -130,6 +138,7 @@ impl Mat4 {
         let z= far - near;
 
         Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data: [
                 2.0 / x, 0.0, 0.0, 0.0,
                 0.0, 2.0 / y, 0.0, 0.0,
@@ -139,18 +148,34 @@ impl Mat4 {
         }
     }
 
-    pub fn look_at(eye: &Vec3, front: &Vec3, up: &Vec3) -> Mat4 {
-        let s = front.cross(up);
-        let u = s.cross(front);
+    pub fn look_at(eye: &Vec3, center: &Vec3, up: &Vec3) -> Mat4 {
+        let f = (center - eye).unit();
+        let s = f.cross(&up.unit());
+        let u = s.unit().cross(&f);
         let m = Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
             data: [
-                s.x(), u.x(), -front.x(), 0.0,
-                s.y(), u.y(), -front.y(), 0.0,
-                s.z(), u.z(), -front.z(), 0.0,
+                s.x(), u.x(), -f.x(), 0.0,
+                s.y(), u.y(), -f.y(), 0.0,
+                s.z(), u.z(), -f.z(), 0.0,
                 0.0, 0.0, 0.0, 1.0
             ]
         };
         m * (-eye).translation_mat()
+    }
+
+    pub fn transpose(&self) -> Mat4 {
+        let data = &self.data;
+
+        Mat4 {
+            #[cfg_attr(rustfmt, rustfmt::skip)]
+            data: [
+                data[0], data[4], data[8], data[12],
+                data[1], data[5], data[9], data[13],
+                data[2], data[6], data[10], data[14],
+                data[3], data[7], data[11], data[15]
+            ]
+        }
     }
 }
 
@@ -231,5 +256,48 @@ impl ops::Mul<&Mat4> for &Mat4 {
         Mat4 {
             data
         }
+    }
+}
+
+impl ops::Mul<Vec4> for Mat4 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: Vec4) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl ops::Mul<&Vec4> for Mat4 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: &Vec4) -> Self::Output {
+        &self * rhs
+    }
+}
+
+impl ops::Mul<Vec4> for &Mat4 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: Vec4) -> Self::Output {
+        self * &rhs
+    }
+}
+
+impl ops::Mul<&Vec4> for &Mat4 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: &Vec4) -> Self::Output {
+        let m = &self.data;
+        let x = rhs.x();
+        let y = rhs.y();
+        let z = rhs.z();
+        let w = rhs.w();
+
+        Vec4::new(
+            m[0] * x + m[4] * y + m[8] * z + m[12] * w,
+            m[1] * x + m[5] * y + m[9] * z + m[13] * w,
+            m[2] * x + m[6] * y + m[10] * z + m[14] * w,
+            m[3] * x + m[7] * y + m[11] * z + m[15] * w,
+        )
     }
 }

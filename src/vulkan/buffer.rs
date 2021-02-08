@@ -29,6 +29,44 @@ impl VkBuffer {
         }
     }
 
+    pub fn new_device_local<T: Copy>(
+        instance: &ash::Instance,
+        physical_device: &VkPhysicalDevice,
+        device: &VkDevice,
+        command_pool: &VkCommandPool,
+        queue: vk::Queue,
+        usage: vk::BufferUsageFlags,
+        data: &[T],
+    ) -> VkBuffer {
+        let size = (data.len() * std::mem::size_of::<T>()) as u64;
+        log::info!("creating device-local buffer of size {}", size);
+
+        let staging_buffer = VkBuffer::new(
+            instance,
+            physical_device,
+            device,
+            vk::BufferUsageFlags::TRANSFER_SRC,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            size,
+        );
+        staging_buffer.map_memory(device, data);
+
+        let buffer = VkBuffer::new(
+            instance,
+            physical_device,
+            device,
+            usage | vk::BufferUsageFlags::TRANSFER_DST,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            size,
+        );
+
+        log::info!("Copying buffer data");
+        VkBuffer::copy(device, command_pool, queue, &staging_buffer, &buffer);
+        staging_buffer.cleanup(device);
+
+        buffer
+    }
+
     pub fn map_memory<T: Copy>(&self, device: &VkDevice, data: &[T]) {
         unsafe {
             let ptr = device

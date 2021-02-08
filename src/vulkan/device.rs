@@ -77,6 +77,8 @@ impl VkDevice {
     }
 
     pub fn wait_idle(&self) {
+        log::debug!("Waiting device idle");
+
         unsafe {
             self.handle
                 .device_wait_idle()

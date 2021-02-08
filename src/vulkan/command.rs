@@ -21,7 +21,9 @@ impl VkCommandPool {
         VkCommandPool { handle }
     }
 
-    pub fn create_command_buffers(&self, device: &VkDevice, count: u32) -> Vec<vk::CommandBuffer> {    
+    pub fn create_command_buffers(&self, device: &VkDevice, count: u32) -> Vec<vk::CommandBuffer> {
+        log::info!("Creating {} command buffers", count);
+        
         let buffer_info = vk::CommandBufferAllocateInfo::builder()
             .command_pool(self.handle)
             .level(vk::CommandBufferLevel::PRIMARY)

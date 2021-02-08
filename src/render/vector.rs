@@ -3,7 +3,7 @@ use std::ops;
 use super::Mat4;
 
 #[repr(transparent)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vec3 {
     data: [f32; 3],
 }
@@ -76,6 +76,12 @@ impl Vec3 {
 
     pub fn rotation_mat(&self, radians: f32) -> Mat4 {
         Mat4::rotate(radians, self)
+    }
+
+    pub fn homogenous(&self) -> Vec4 {
+        Vec4 {
+            data: [self.data[0], self.data[1], self.data[2], 1.0]
+        }
     }
 
     // pub fn angle(&self) -> f32 {
@@ -232,7 +238,7 @@ impl ops::Neg for &Vec3 {
 }
 
 #[repr(transparent)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vec4 {
     data: [f32; 4],
 }

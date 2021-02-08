@@ -1,6 +1,7 @@
 mod buffer;
 mod command;
 mod context;
+mod descriptor;
 mod debug;
 mod device;
 mod fence;
@@ -21,6 +22,7 @@ mod version;
 pub use buffer::VkBuffer;
 pub use command::VkCommandPool;
 pub use context::VkContext;
+pub use descriptor::{VkDescriptorSetLayout, VkDescriptorPool};
 pub use device::VkDevice;
 pub use fence::VkFence;
 pub use physical_device::VkPhysicalDevice;

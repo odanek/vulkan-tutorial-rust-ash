@@ -29,15 +29,20 @@ fn main() {
     let window_size = PhysicalSize::new(800, 600);
     let (event_loop, window) = create_window(&window_size);
     let mut app = TutorialApp::new(&window);    
+    let mut exit = false;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {
             // app.update();
+            if !exit {
+                app.draw_frame(&window);
+            }            
             // window.request_redraw();
         }
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::CloseRequested => {
                 app.wait_idle();
+                exit = true;
                 *control_flow = ControlFlow::Exit
             }
             WindowEvent::Resized(size) => {
@@ -49,16 +54,16 @@ fn main() {
             }
             _ => (),
         },
-        Event::RedrawRequested(_window_id) => {
-            app.draw_frame(&window);
-        }
+        // Event::RedrawRequested(_window_id) => {
+        //     app.draw_frame(&window);
+        // }
         // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
         // dispatched any events. This is ideal for games and similar applications.
-        //_ => *control_flow = ControlFlow::Poll,
+        _ => *control_flow = ControlFlow::Poll,
         // ControlFlow::Wait pauses the event loop if no events are available to process.
         // This is ideal for non-game applications that only update in response to user
         // input, and uses significantly less power/CPU time than ControlFlow::Poll.
-        _ => *control_flow = ControlFlow::Wait,
+        // _ => *control_flow = ControlFlow::Wait,
     });
 }
 

@@ -1,31 +1,27 @@
 use std::time::Instant;
 
-use crate::{
-    app::App,
-    render::{Mat4, Vec3, Vertex},
-    vulkan::{
-        VkBuffer, VkCommandPool, VkContext, VkDevice, VkFence, VkPhysicalDevice, VkPipeline,
-        VkSettings, VkShaderModule, VkSwapChain,
-    },
-};
+use crate::{app::App, render::{IDENT4, Mat4, Vec3, Vertex}, vulkan::{
+        VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkFence,
+        VkPipeline, VkSettings, VkShaderModule, VkSwapChain,
+    }};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
 const VERTICES: [Vertex; 4] = [
     Vertex {
-        position: Vec3::new(-0.5, -0.5, 0.0),
+        position: Vec3::new(-0.5, 0.5, 0.0),
         color: Vec3::new(1.0, 0.0, 0.0),
     },
     Vertex {
-        position: Vec3::new(0.5, -0.5, 0.0),
+        position: Vec3::new(0.5, 0.5, 0.0),
         color: Vec3::new(0.0, 1.0, 0.0),
     },
     Vertex {
-        position: Vec3::new(0.5, 0.5, 0.0),
+        position: Vec3::new(0.5, -0.5, 0.0),
         color: Vec3::new(0.0, 0.0, 1.0),
     },
     Vertex {
-        position: Vec3::new(-0.5, 0.5, 0.0),
+        position: Vec3::new(-0.5, -0.5, 0.0),
         color: Vec3::new(1.0, 0.0, 1.0),
     },
 ];
@@ -46,7 +42,9 @@ pub struct TutorialApp {
     index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
     pipeline: VkPipeline,
-    descriptor_set_layout: vk::DescriptorSetLayout,
+    descriptor_sets: Vec<vk::DescriptorSet>,
+    descriptor_pool: VkDescriptorPool,
+    descriptor_set_layout: VkDescriptorSetLayout,
     vertex_shader_module: VkShaderModule,
     fragment_shader_module: VkShaderModule,
     vk_context: VkContext,
@@ -56,57 +54,36 @@ impl TutorialApp {
     pub fn new(window: &Window) -> TutorialApp {
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
-        let VkContext {
-            ref instance,
-            ref physical_device,
-            ref device,
-            ref command_pool,
-            ref swap_chain,
-            ref render_pass,
-            ..
-        } = vk_context;
-
         let vertex_shader_module = VkShaderModule::new_from_file(
-            device,
+            &vk_context.device,
             vk::ShaderStageFlags::VERTEX,
             "shader/vert.spv",
             "main",
         );
         let fragment_shader_module = VkShaderModule::new_from_file(
-            device,
+            &vk_context.device,
             vk::ShaderStageFlags::FRAGMENT,
             "shader/frag.spv",
             "main",
         );
-        let descriptor_set_layout = Self::create_descriptor_set_layout(device);
-        let pipeline = VkPipeline::new(
-            device,
-            swap_chain,
-            render_pass,
+        let descriptor_set_layout = Self::create_descriptor_set_layout(&vk_context.device);
+        let pipeline = Self::create_pipeline(
+            &vk_context,
             &vertex_shader_module,
             &fragment_shader_module,
-            &[descriptor_set_layout],
+            &descriptor_set_layout,
         );
-        let vertex_buffer = Self::create_buffer(
-            instance,
-            physical_device,
-            device,
-            command_pool,
-            device.graphics_queue,
-            vk::BufferUsageFlags::VERTEX_BUFFER,
-            &VERTICES,
+        let vertex_buffer = Self::create_vertex_buffer(&vk_context);
+        let index_buffer = Self::create_index_buffer(&vk_context);
+        let uniform_buffers = Self::create_uniform_buffers(&vk_context);
+        let descriptor_pool =
+            Self::create_descriptor_pool(&vk_context.device, &vk_context.swap_chain);
+        let descriptor_sets = Self::create_descriptor_sets(
+            &vk_context.device,
+            &descriptor_pool,
+            &descriptor_set_layout,
+            &uniform_buffers,
         );
-        let index_buffer = Self::create_buffer(
-            instance,
-            physical_device,
-            device,
-            command_pool,
-            device.graphics_queue,
-            vk::BufferUsageFlags::INDEX_BUFFER,
-            &INDICES,
-        );
-        let uniform_buffers =
-            Self::create_uniform_buffers(instance, physical_device, device, swap_chain);
 
         let app = TutorialApp {
             start_time: Instant::now(),
@@ -114,6 +91,8 @@ impl TutorialApp {
             index_buffer,
             vertex_buffer,
             pipeline,
+            descriptor_sets,
+            descriptor_pool,
             descriptor_set_layout,
             vertex_shader_module,
             fragment_shader_module,
@@ -127,23 +106,24 @@ impl TutorialApp {
     fn cleanup_swap_chain(&mut self) {
         self.pipeline.cleanup(&self.vk_context.device);
         self.cleanup_uniform_buffers();
+        self.descriptor_pool.cleanup(&self.vk_context.device);
     }
 
     fn create_swap_chain(&mut self) {
         let context = &self.vk_context;
-        self.pipeline = VkPipeline::new(
-            &context.device,
-            &context.swap_chain,
-            &context.render_pass,
+        self.pipeline = Self::create_pipeline(
+            context,
             &self.vertex_shader_module,
             &self.fragment_shader_module,
-            &[self.descriptor_set_layout],
+            &self.descriptor_set_layout,
         );
-        self.uniform_buffers = Self::create_uniform_buffers(
-            &context.instance,
-            &context.physical_device,
+        self.uniform_buffers = Self::create_uniform_buffers(context);
+        self.descriptor_pool = Self::create_descriptor_pool(&context.device, &context.swap_chain);
+        self.descriptor_sets = Self::create_descriptor_sets(
             &context.device,
-            &context.swap_chain,
+            &self.descriptor_pool,
+            &self.descriptor_set_layout,
+            &self.uniform_buffers,
         );
         self.record_commands();
     }
@@ -156,37 +136,66 @@ impl TutorialApp {
         self.create_swap_chain();
     }
 
-    fn create_descriptor_set_layout(device: &VkDevice) -> vk::DescriptorSetLayout {
+    fn create_descriptor_set_layout(device: &VkDevice) -> VkDescriptorSetLayout {
         let ubo_layout_binding = vk::DescriptorSetLayoutBinding::builder()
             .binding(0)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(1)
             .stage_flags(vk::ShaderStageFlags::VERTEX);
-        let bindings = [ubo_layout_binding.build()];
-        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings);
-
-        unsafe {
-            device
-                .handle
-                .create_descriptor_set_layout(&layout_info, None)
-                .expect("Unable to create descriptor set layout")
-        }
+        VkDescriptorSetLayout::new(device, &[ubo_layout_binding.build()])
     }
 
-    fn create_uniform_buffers(
-        instance: &ash::Instance,
-        physical_device: &VkPhysicalDevice,
-        device: &VkDevice,
-        swap_chain: &VkSwapChain,
-    ) -> Vec<VkBuffer> {
-        let size = std::mem::size_of::<UniformBufferObject>() as u64;
+    fn create_pipeline(
+        context: &VkContext,
+        vs: &VkShaderModule,
+        fs: &VkShaderModule,
+        descriptor_set_layout: &VkDescriptorSetLayout,
+    ) -> VkPipeline {
+        VkPipeline::new(
+            &context.device,
+            &context.swap_chain,
+            &context.render_pass,
+            &vs,
+            &fs,
+            &[descriptor_set_layout.handle],
+        )
+    }
 
-        (1..swap_chain.images.len())
+    fn create_vertex_buffer(context: &VkContext) -> VkBuffer {
+        VkBuffer::new_device_local(
+            &context.instance,
+            &context.physical_device,
+            &context.device,
+            &context.command_pool,
+            context.device.graphics_queue,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            &VERTICES,
+        )
+    }
+
+    fn create_index_buffer(context: &VkContext) -> VkBuffer {
+        VkBuffer::new_device_local(
+            &context.instance,
+            &context.physical_device,
+            &context.device,
+            &context.command_pool,
+            context.device.graphics_queue,
+            vk::BufferUsageFlags::INDEX_BUFFER,
+            &INDICES,
+        )
+    }
+
+    fn create_uniform_buffers(context: &VkContext) -> Vec<VkBuffer> {
+        let size = std::mem::size_of::<UniformBufferObject>() as u64;
+        let count = context.swap_chain.image_count;
+        log::info!("Creating {} uniform buffers", count);
+
+        (0..count)
             .map(|_| {
                 VkBuffer::new(
-                    instance,
-                    physical_device,
-                    device,
+                    &context.instance,
+                    &context.physical_device,
+                    &context.device,
                     vk::BufferUsageFlags::UNIFORM_BUFFER,
                     vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
                     size,
@@ -203,52 +212,75 @@ impl TutorialApp {
     }
 
     fn update_uniform_buffer(&self, image_index: usize, elapsed_time: f32) {
-        let screen_width = self.vk_context.swap_chain.swap_extent.width as f32;
-        let screen_height = self.vk_context.swap_chain.swap_extent.height as f32;
+        let extent = self.vk_context.swap_chain.swap_extent;
+        let screen_width = extent.width as f32;
+        let screen_height = extent.height as f32;
         let ubo = UniformBufferObject {
-            model: Mat4::rotate_z(elapsed_time),
-            view: Mat4::look_at(&Vec3::new(2.0, 2.0, 2.0), &Vec3::new(-1.0, -1.0, -1.0).unit(), &Vec3::new(0.0, 0.0, 1.0)),
-            proj: Mat4::perspective(0.785, screen_width / screen_height, 0.1, 10.0)
+            model: Mat4::rotate_z(elapsed_time),           
+            view: Mat4::look_at(
+                &Vec3::new(0.0, 0.0, 5.0),
+                &Vec3::new(0.0, 0.0, 0.0),
+                &Vec3::new(0.0, 1.0, 0.0),
+            ),
+            proj: Mat4::perspective(0.785, screen_width / screen_height, 0.1, 10.0),
         };
+
         self.uniform_buffers[image_index].map_memory(&self.vk_context.device, &[ubo]);
     }
 
-    fn create_buffer<T: Copy>(
-        instance: &ash::Instance,
-        physical_device: &VkPhysicalDevice,
+    fn create_descriptor_pool(device: &VkDevice, swap_chain: &VkSwapChain) -> VkDescriptorPool {
+        VkDescriptorPool::new(
+            device,
+            vk::DescriptorType::UNIFORM_BUFFER,
+            swap_chain.image_count,
+        )
+    }
+
+    fn create_descriptor_sets(
         device: &VkDevice,
-        command_pool: &VkCommandPool,
-        queue: vk::Queue,
-        usage: vk::BufferUsageFlags,
-        data: &[T],
-    ) -> VkBuffer {
-        let size = (data.len() * std::mem::size_of::<T>()) as u64;
-        log::info!("creating vertex buffer of size {}", size);
+        pool: &VkDescriptorPool,
+        layout: &VkDescriptorSetLayout,
+        uniform_buffers: &[VkBuffer],
+    ) -> Vec<vk::DescriptorSet> {
+        let count = uniform_buffers.len();
+        log::info!("Creating {} descriptor sets", count);
 
-        let staging_buffer = VkBuffer::new(
-            instance,
-            physical_device,
-            device,
-            vk::BufferUsageFlags::TRANSFER_SRC,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-            size,
-        );
-        staging_buffer.map_memory(device, data);
+        let layouts = (0..count).map(|_| layout.handle).collect::<Vec<_>>();
+        let alloc_info = vk::DescriptorSetAllocateInfo::builder()
+            .descriptor_pool(pool.handle)
+            .set_layouts(&layouts)
+            .build();
+        let descriptor_sets = unsafe {
+            device
+                .allocate_descriptor_sets(&alloc_info)
+                .expect("Unable to create descriptor sets")
+        };
 
-        let vertex_buffer = VkBuffer::new(
-            instance,
-            physical_device,
-            device,
-            usage | vk::BufferUsageFlags::TRANSFER_DST,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            size,
-        );
+        descriptor_sets
+            .iter()
+            .zip(uniform_buffers.iter())
+            .for_each(|(set, buffer)| {
+                let buffer_info = vk::DescriptorBufferInfo::builder()
+                    .buffer(buffer.handle)
+                    .offset(0)
+                    .range(std::mem::size_of::<UniformBufferObject>() as vk::DeviceSize)
+                    .build();
+                let buffer_infos = [buffer_info];
 
-        log::info!("Copying vertex buffer data");
-        VkBuffer::copy(device, command_pool, queue, &staging_buffer, &vertex_buffer);
-        staging_buffer.cleanup(device);
+                let ubo_descriptor_write = vk::WriteDescriptorSet::builder()
+                    .dst_set(*set)
+                    .dst_binding(0)
+                    .dst_array_element(0)
+                    .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                    .buffer_info(&buffer_infos)
+                    .build();
 
-        vertex_buffer
+                let descriptor_writes = [ubo_descriptor_write];
+
+                unsafe { device.update_descriptor_sets(&descriptor_writes, &[]) }
+            });
+
+        descriptor_sets
     }
 
     fn record_commands(&self) {
@@ -299,6 +331,14 @@ impl TutorialApp {
                     self.index_buffer.handle,
                     0,
                     vk::IndexType::UINT16,
+                );
+                device.cmd_bind_descriptor_sets(
+                    buffer,
+                    vk::PipelineBindPoint::GRAPHICS,
+                    self.pipeline.layout,
+                    0,
+                    &self.descriptor_sets[index..=index],
+                    &[],
                 );
                 device.cmd_draw_indexed(buffer, INDICES.len() as u32, 1, 0, 0, 0);
                 device.cmd_end_render_pass(buffer);
@@ -434,17 +474,8 @@ impl Drop for TutorialApp {
         self.index_buffer.cleanup(&self.vk_context.device);
         self.vertex_buffer.cleanup(&self.vk_context.device);
         self.cleanup_swap_chain();
-
-        let context = &self.vk_context;
-        let device = &context.device;
-
-        unsafe {
-            device
-                .handle
-                .destroy_descriptor_set_layout(self.descriptor_set_layout, None);
-        }
-
-        self.vertex_shader_module.cleanup(device);
-        self.fragment_shader_module.cleanup(device);
+        self.descriptor_set_layout.cleanup(&self.vk_context.device);
+        self.vertex_shader_module.cleanup(&self.vk_context.device);
+        self.fragment_shader_module.cleanup(&self.vk_context.device);
     }
 }
