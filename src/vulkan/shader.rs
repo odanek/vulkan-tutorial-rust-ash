@@ -1,10 +1,16 @@
-use std::{ffi::CString, fs::File, io::{Cursor, Read}};
+use std::{
+    ffi::CString,
+    fs::File,
+    io::{Cursor, Read},
+    sync::Arc,
+};
 
 use ash::{version::DeviceV1_0, vk};
 
 use super::device::VkDevice;
 
 pub struct VkShaderModule {
+    device: Arc<VkDevice>,
     pub handle: vk::ShaderModule,
     pub stage: vk::ShaderStageFlags,
     pub entry_point: CString,
@@ -12,12 +18,16 @@ pub struct VkShaderModule {
 
 impl VkShaderModule {
     pub fn new_from_file(
-        device: &VkDevice,
+        device: &Arc<VkDevice>,
         stage: vk::ShaderStageFlags,
         path: &str,
-        entry_point: &str
+        entry_point: &str,
     ) -> VkShaderModule {
-        log::info!("Creating shader module from file {}, entry point {}", path, entry_point);
+        log::info!(
+            "Creating shader module from file {}, entry point {}",
+            path,
+            entry_point
+        );
 
         let mut buf = Vec::new();
         let mut file = File::open(path).expect("Unable to open shader file");
@@ -31,12 +41,13 @@ impl VkShaderModule {
                 .handle
                 .create_shader_module(&create_info, None)
                 .expect("Unable to create shader module")
-        };        
+        };
 
-        VkShaderModule { 
-            handle, 
+        VkShaderModule {
+            device: Arc::clone(device),
+            handle,
             stage,
-            entry_point: CString::new(entry_point).unwrap()
+            entry_point: CString::new(entry_point).unwrap(),
         }
     }
 
@@ -44,12 +55,14 @@ impl VkShaderModule {
         vk::PipelineShaderStageCreateInfo::builder()
             .stage(self.stage)
             .module(self.handle)
-            .name(&self.entry_point)            
+            .name(&self.entry_point)
     }
+}
 
-    pub fn cleanup(&self, device: &VkDevice) {
+impl Drop for VkShaderModule {
+    fn drop(&mut self) {
         unsafe {
-            device.handle.destroy_shader_module(self.handle, None);
+            self.device.handle.destroy_shader_module(self.handle, None);
         }
     }
 }

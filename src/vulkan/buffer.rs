@@ -1,10 +1,11 @@
-use std::mem::align_of;
+use std::{mem::align_of, sync::Arc};
 
 use ash::{version::DeviceV1_0, vk};
 
-use super::{physical_device::VkPhysicalDevice, VkCommandPool, VkDevice};
+use super::{VkCommandPool, VkDevice};
 
 pub struct VkBuffer {
+    device: Arc<VkDevice>,
     pub handle: vk::Buffer,
     pub memory: vk::DeviceMemory,
     pub size: u64,
@@ -12,17 +13,16 @@ pub struct VkBuffer {
 
 impl VkBuffer {
     pub fn new(
-        instance: &ash::Instance,
-        physical_device: &VkPhysicalDevice,
-        device: &VkDevice,
+        device: &Arc<VkDevice>,
         usage: vk::BufferUsageFlags,
         properties: vk::MemoryPropertyFlags,
         size: u64,
     ) -> VkBuffer {
         let handle = create_vertex_buffer(device, usage, size);
-        let memory = assign_buffer_memory(instance, physical_device, device, handle, properties);
+        let memory = assign_buffer_memory(device, handle, properties);
 
         VkBuffer {
+            device: Arc::clone(device),
             handle,
             memory,
             size,
@@ -30,9 +30,7 @@ impl VkBuffer {
     }
 
     pub fn new_device_local<T: Copy>(
-        instance: &ash::Instance,
-        physical_device: &VkPhysicalDevice,
-        device: &VkDevice,
+        device: &Arc<VkDevice>,
         command_pool: &VkCommandPool,
         queue: vk::Queue,
         usage: vk::BufferUsageFlags,
@@ -42,8 +40,6 @@ impl VkBuffer {
         log::info!("creating device-local buffer of size {}", size);
 
         let staging_buffer = VkBuffer::new(
-            instance,
-            physical_device,
             device,
             vk::BufferUsageFlags::TRANSFER_SRC,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
@@ -52,8 +48,6 @@ impl VkBuffer {
         staging_buffer.map_memory(device, data);
 
         let buffer = VkBuffer::new(
-            instance,
-            physical_device,
             device,
             usage | vk::BufferUsageFlags::TRANSFER_DST,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
@@ -61,8 +55,7 @@ impl VkBuffer {
         );
 
         log::info!("Copying buffer data");
-        VkBuffer::copy(device, command_pool, queue, &staging_buffer, &buffer);
-        staging_buffer.cleanup(device);
+        VkBuffer::copy( &staging_buffer, &buffer, command_pool, queue);        
 
         buffer
     }
@@ -75,22 +68,23 @@ impl VkBuffer {
                 .expect("Unable to map memory");
             let mut align = ash::util::Align::new(ptr, align_of::<u8>() as _, self.size);
             align.copy_from_slice(data);
-            device.unmap_memory(self.memory);
+            device.handle.unmap_memory(self.memory);
         }
     }
 
-    pub fn copy(
-        device: &VkDevice,
-        command_pool: &VkCommandPool,
-        queue: vk::Queue,
+    pub fn copy(        
         src: &VkBuffer,
         dst: &VkBuffer,
+        command_pool: &VkCommandPool,
+        queue: vk::Queue,
     ) {
-        let command_buffer = command_pool.create_command_buffer(device);
+        let device = &src.device;
+        let command_buffer = command_pool.create_command_buffer();
         let command_begin_info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
         unsafe {
             device
+                .handle
                 .begin_command_buffer(command_buffer, &command_begin_info)
                 .expect("Unable to begin command buffer")
         };
@@ -113,22 +107,26 @@ impl VkBuffer {
             let submit_info = vk::SubmitInfo::builder().command_buffers(&command_buffers);
             let infos = [submit_info.build()];
             device
+                .handle
                 .queue_submit(queue, &infos, vk::Fence::null())
                 .expect("Unable to submit queue");
             device
+                .handle
                 .queue_wait_idle(queue)
                 .expect("Unable to wait for queue idle state");
         }
 
-        command_pool.clear_command_buffer(device, command_buffer);
+        command_pool.clear_command_buffer(command_buffer);
     }
+}
 
-    pub fn cleanup(&self, device: &VkDevice) {
+impl Drop for VkBuffer {
+    fn drop(&mut self) {
         unsafe {
-            device.handle.destroy_buffer(self.handle, None);
+            self.device.handle.destroy_buffer(self.handle, None);
         }
         unsafe {
-            device.handle.free_memory(self.memory, None);
+            self.device.handle.free_memory(self.memory, None);
         }
     }
 }
@@ -148,14 +146,12 @@ fn create_vertex_buffer(device: &VkDevice, usage: vk::BufferUsageFlags, size: u6
 }
 
 fn assign_buffer_memory(
-    instance: &ash::Instance,
-    physical_device: &VkPhysicalDevice,
     device: &VkDevice,
     buffer: vk::Buffer,
     properties: vk::MemoryPropertyFlags,
 ) -> vk::DeviceMemory {
     let mem_requirements = unsafe { device.handle.get_buffer_memory_requirements(buffer) };
-    let physical_mem_properties = physical_device.get_mem_properties(instance);
+    let physical_mem_properties = device.physical_device.get_mem_properties();
     let mem_type_index = find_memory_type(mem_requirements, physical_mem_properties, properties);
 
     let alloc_info = vk::MemoryAllocateInfo::builder()
@@ -164,9 +160,11 @@ fn assign_buffer_memory(
         .build();
     let memory = unsafe {
         let vertex_buffer_memory = device
+            .handle
             .allocate_memory(&alloc_info, None)
             .expect("Unable to allocate buffer memory");
         device
+            .handle
             .bind_buffer_memory(buffer, vertex_buffer_memory, 0)
             .expect("Unable to bind image memory");
         vertex_buffer_memory

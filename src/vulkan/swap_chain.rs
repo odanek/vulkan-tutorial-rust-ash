@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ash::{
     extensions::khr::Swapchain,
     prelude::VkResult,
@@ -11,6 +13,7 @@ use super::{
 };
 
 pub struct VkSwapChain {
+    pub device: Arc<VkDevice>,
     pub format: vk::SurfaceFormatKHR,
     pub present_mode: vk::PresentModeKHR,
     pub swap_extent: vk::Extent2D,
@@ -24,13 +27,11 @@ pub struct VkSwapChain {
 
 impl VkSwapChain {
     pub fn new(
-        instance: &ash::Instance,
-        physical_device: &VkPhysicalDevice,
-        device: &VkDevice,
+        device: &Arc<VkDevice>,
         surface: &VkSurface,
         dimensions: &[u32; 2],
     ) -> VkSwapChain {
-        let surface_caps = surface.get_physical_device_surface_capabilities(physical_device);
+        let surface_caps = surface.get_physical_device_surface_capabilities(&device.physical_device);
         let format = choose_swapchain_surface_format(&surface_caps.formats);
         log::info!("Choosing swap-chain image format: {:?}", format);
         let present_mode = choose_swapchain_surface_present_mode(&surface_caps.present_modes);
@@ -69,7 +70,7 @@ impl VkSwapChain {
             create_info = create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE);
         }
 
-        let extension = Swapchain::new(instance, &device.handle);
+        let extension = Swapchain::new(&device.physical_device.instance.handle, &device.handle);
         let handle = unsafe {
             extension
                 .create_swapchain(&create_info, None)
@@ -85,6 +86,7 @@ impl VkSwapChain {
         let image_views = create_image_views(device, &images, format.format);
 
         VkSwapChain {
+            device: Arc::clone(device),
             format,
             present_mode,
             swap_extent,

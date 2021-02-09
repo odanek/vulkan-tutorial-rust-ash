@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ash::{version::DeviceV1_0, vk};
 
 use crate::render::Vertex;
@@ -7,13 +9,14 @@ use super::{device::VkDevice, render_pass::VkRenderPass, swap_chain::VkSwapChain
 use memoffset::offset_of;
 
 pub struct VkPipeline {
+    device: Arc<VkDevice>,
     pub handle: vk::Pipeline,
     pub layout: vk::PipelineLayout,
 }
 
 impl VkPipeline {
     pub fn new(
-        device: &VkDevice,
+        device: &Arc<VkDevice>,
         swap_chain: &VkSwapChain,
         render_pass: &VkRenderPass,
         vertex_shader_module: &VkShaderModule,
@@ -122,20 +125,26 @@ impl VkPipeline {
 
         let handle = unsafe {
             device
+                .handle
                 .create_graphics_pipelines(vk::PipelineCache::null(), &pipeline_infos, None)
                 .expect("Unable t ocreate graphics pipelines")[0]
         };
 
-        VkPipeline { layout, handle }
+        VkPipeline {
+            device: Arc::clone(device),
+            layout,
+            handle,
+        }
     }
+}
 
-    pub fn cleanup(&self, device: &VkDevice) {
+impl Drop for VkPipeline {
+    fn drop(&mut self) {
         log::debug!("Dropping pipeline");
-
-        let handle = &device.handle;
+        
         unsafe {
-            handle.destroy_pipeline(self.handle, None);
-            handle.destroy_pipeline_layout(self.layout, None);
+            self.device.handle.destroy_pipeline(self.handle, None);
+            self.device.handle.destroy_pipeline_layout(self.layout, None);
         }
     }
 }

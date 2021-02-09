@@ -1,20 +1,10 @@
-use std::ops::Deref;
-
 use ash::{extensions::khr::Surface, vk};
 
-use super::physical_device::VkPhysicalDevice;
+use super::{instance::VkInstance, physical_device::VkPhysicalDevice};
 
 pub struct VkSurface {
     pub extension: Surface,
     pub handle: vk::SurfaceKHR,
-}
-
-impl Deref for VkSurface {
-    type Target = vk::SurfaceKHR;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handle
-    }
 }
 
 pub struct VkSurfaceCapabilities {
@@ -26,12 +16,12 @@ pub struct VkSurfaceCapabilities {
 impl VkSurface {
     pub fn new(
         entry: &ash::Entry,
-        instance: &ash::Instance,
+        instance: &VkInstance,
         window: &winit::window::Window,
     ) -> VkSurface {
-        let extension = Surface::new(entry, instance);
+        let extension = Surface::new(entry, &instance.handle);
         let handle = unsafe {
-            ash_window::create_surface(entry, instance, window, None)
+            ash_window::create_surface(entry, &instance.handle, window, None)
                 .expect("Unable to create surface")
         };
 
@@ -75,8 +65,10 @@ impl VkSurface {
             }
         }
     }
+}
 
-    pub fn cleanup(&mut self) {
+impl Drop for VkSurface {
+    fn drop(&mut self) {
         log::debug!("Dropping surface");
         unsafe {
             self.extension.destroy_surface(self.handle, None);

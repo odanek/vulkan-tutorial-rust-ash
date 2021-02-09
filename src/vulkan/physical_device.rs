@@ -1,10 +1,8 @@
-use std::{ffi::CStr, ops::Deref};
+use std::{ffi::CStr, sync::Arc};
 
 use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk};
 
-use super::{
-    queue_family::VkQueueFamily, surface::VkSurface, utils::coerce_string, version::VkVersion,
-};
+use super::{instance::VkInstance, queue_family::VkQueueFamily, surface::VkSurface, utils::coerce_string, version::VkVersion};
 
 #[derive(Debug)]
 pub enum DeviceType {
@@ -16,6 +14,7 @@ pub enum DeviceType {
 }
 
 pub struct VkPhysicalDevice {
+    pub instance: Arc<VkInstance>,
     pub handle: vk::PhysicalDevice,
     pub name: String,
     pub kind: DeviceType,
@@ -24,8 +23,8 @@ pub struct VkPhysicalDevice {
 }
 
 impl VkPhysicalDevice {
-    pub fn new(instance: &ash::Instance, surface: &VkSurface) -> VkPhysicalDevice {
-        let physical_devices = enumerate_devices(instance);
+    pub fn new(instance: &Arc<VkInstance>, surface: &VkSurface) -> VkPhysicalDevice {
+        let physical_devices = enumerate_devices(&instance.handle);
         log::info!(
             "{} device(s) found with vulkan support",
             physical_devices.len()
@@ -38,7 +37,7 @@ impl VkPhysicalDevice {
             let physical_device = create_physical_device(instance, handle);
             describe_device(&physical_device);
 
-            let score = rate_device_suitability(instance, &physical_device, surface, &extensions);
+            let score = rate_device_suitability(&physical_device, surface, &extensions);
             if score > best_score {
                 best_physical_device = Some(physical_device);
                 best_score = score;
@@ -51,23 +50,14 @@ impl VkPhysicalDevice {
         panic!("Failed to find a suitable GPU!");
     }
 
-    pub fn get_mem_properties(&self, instance: &ash::Instance) -> vk::PhysicalDeviceMemoryProperties {
+    pub fn get_mem_properties(&self) -> vk::PhysicalDeviceMemoryProperties {
         unsafe {
-            instance
-                .get_physical_device_memory_properties(self.handle)
+            self.instance.handle.get_physical_device_memory_properties(self.handle)
         }
     }
 
     pub fn get_required_device_extensions() -> Vec<&'static CStr> {
         vec![Swapchain::name()]
-    }
-}
-
-impl Deref for VkPhysicalDevice {
-    type Target = vk::PhysicalDevice;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handle
     }
 }
 
@@ -80,16 +70,17 @@ fn enumerate_devices(instance: &ash::Instance) -> Vec<vk::PhysicalDevice> {
 }
 
 fn create_physical_device(
-    instance: &ash::Instance,
+    instance: &Arc<VkInstance>,
     handle: vk::PhysicalDevice,
 ) -> VkPhysicalDevice {
-    let properties = unsafe { instance.get_physical_device_properties(handle) };
+    let properties = unsafe { instance.handle.get_physical_device_properties(handle) };
     let kind = get_device_type(&properties);
     let name = coerce_string(&properties.device_name);
     let api_version = VkVersion::parse(properties.api_version);
-    let queue_families = get_queue_families(instance, handle);
+    let queue_families = get_queue_families(&instance.handle, handle);
 
     VkPhysicalDevice {
+        instance: Arc::clone(instance),
         handle,
         name,
         kind,
@@ -123,7 +114,6 @@ fn describe_device(device: &VkPhysicalDevice) {
 }
 
 fn rate_device_suitability(
-    instance: &ash::Instance,
     device: &VkPhysicalDevice,
     surface: &VkSurface,
     extensions: &[&CStr],
@@ -149,7 +139,7 @@ fn rate_device_suitability(
         return -1;
     }
 
-    if !check_device_extension_support(instance, device, extensions) {
+    if !check_device_extension_support(device, extensions) {
         return -1;
     }
 
@@ -195,11 +185,11 @@ fn has_queue_family(
         .any(|family| family.queue_count > 0 && predicate(family))
 }
 
-fn check_device_extension_support(
-    instance: &ash::Instance,
+fn check_device_extension_support(   
     device: &VkPhysicalDevice,
     extensions: &[&CStr],
 ) -> bool {
+    let instance = &device.instance.handle;
     let extension_props = unsafe {
         instance
             .enumerate_device_extension_properties(device.handle)

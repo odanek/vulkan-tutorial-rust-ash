@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::Deref};
+use std::{collections::HashSet, sync::Arc};
 
 use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
 
@@ -7,6 +7,7 @@ use super::{
 };
 
 pub struct VkDevice {
+    pub physical_device: Arc<VkPhysicalDevice>,
     pub handle: ash::Device,
 
     // TODO: Remove these from VkDevice
@@ -20,9 +21,8 @@ pub struct VkDevice {
 }
 
 impl VkDevice {
-    pub fn new(
-        instance: &ash::Instance,
-        physical_device: &VkPhysicalDevice,
+    pub fn new(        
+        physical_device: &Arc<VkPhysicalDevice>,
         surface: &VkSurface,
     ) -> VkDevice {
         let graphics_queue_family = find_queue_family(physical_device, |family| {
@@ -58,7 +58,7 @@ impl VkDevice {
             .queue_create_infos(&queue_infos)
             .enabled_extension_names(&extension_names);
         let handle = unsafe {
-            instance
+            physical_device.instance.handle
                 .create_device(physical_device.handle, &device_create_info, None)
                 .expect("Unable to create logical device")
         };
@@ -67,6 +67,7 @@ impl VkDevice {
         let presentation_queue = unsafe { handle.get_device_queue(presentation_queue_family, 0) };
 
         VkDevice {
+            physical_device: Arc::clone(physical_device),
             handle,
             graphics_queue,
             graphics_queue_family,
@@ -85,20 +86,14 @@ impl VkDevice {
                 .expect("Failed to wait device idle!")
         };
     }
+}
 
-    pub fn cleanup(&mut self) {
+impl Drop for VkDevice {
+    fn drop(&mut self) {
         log::debug!("Dropping logical device");
         unsafe {
             self.handle.destroy_device(None);
         }
-    }
-}
-
-impl Deref for VkDevice {
-    type Target = ash::Device;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handle
     }
 }
 

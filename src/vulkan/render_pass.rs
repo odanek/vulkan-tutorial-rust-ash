@@ -53,6 +53,7 @@ impl VkRenderPass {
 
         let handle = unsafe {
             device
+                .handle
                 .create_render_pass(&render_pass_info, None)
                 .expect("Unable to create render pass")
         };

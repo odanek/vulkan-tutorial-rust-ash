@@ -1,9 +1,6 @@
 use std::time::Instant;
 
-use crate::{app::App, render::{IDENT4, Mat4, Vec3, Vertex}, vulkan::{
-        VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkFence,
-        VkPipeline, VkSettings, VkShaderModule, VkSwapChain,
-    }};
+use crate::{app::App, render::{Mat4, Vec3, Vertex}, vulkan::{VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkFence, VkImage, VkPipeline, VkSettings, VkShaderModule, VkSwapChain, VkSwapChainSync}};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -36,17 +33,23 @@ struct UniformBufferObject {
     proj: Mat4,
 }
 
-pub struct TutorialApp {
-    start_time: Instant,
+pub struct TutorialAppSwapChainContext {
     uniform_buffers: Vec<VkBuffer>,
-    index_buffer: VkBuffer,
-    vertex_buffer: VkBuffer,
     pipeline: VkPipeline,
     descriptor_sets: Vec<vk::DescriptorSet>,
     descriptor_pool: VkDescriptorPool,
+}
+
+pub struct TutorialApp {
+    start_time: Instant,
+    swap_chain_context: Option<TutorialAppSwapChainContext>,
+    // texture_image: VkImage,
+    index_buffer: VkBuffer,
+    vertex_buffer: VkBuffer,
     descriptor_set_layout: VkDescriptorSetLayout,
     vertex_shader_module: VkShaderModule,
     fragment_shader_module: VkShaderModule,
+    swap_chain_sync: VkSwapChainSync,
     vk_context: VkContext,
 }
 
@@ -54,6 +57,7 @@ impl TutorialApp {
     pub fn new(window: &Window) -> TutorialApp {
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
+        let swap_chain_sync = VkSwapChainSync::new(&vk_context.device, &vk_context.swap_chain, 2);
         let vertex_shader_module = VkShaderModule::new_from_file(
             &vk_context.device,
             vk::ShaderStageFlags::VERTEX,
@@ -66,83 +70,70 @@ impl TutorialApp {
             "shader/frag.spv",
             "main",
         );
-        let descriptor_set_layout = Self::create_descriptor_set_layout(&vk_context.device);
-        let pipeline = Self::create_pipeline(
-            &vk_context,
-            &vertex_shader_module,
-            &fragment_shader_module,
-            &descriptor_set_layout,
-        );
+        let descriptor_set_layout = Self::create_descriptor_set_layout(&vk_context);
         let vertex_buffer = Self::create_vertex_buffer(&vk_context);
         let index_buffer = Self::create_index_buffer(&vk_context);
-        let uniform_buffers = Self::create_uniform_buffers(&vk_context);
-        let descriptor_pool =
-            Self::create_descriptor_pool(&vk_context.device, &vk_context.swap_chain);
-        let descriptor_sets = Self::create_descriptor_sets(
-            &vk_context.device,
-            &descriptor_pool,
-            &descriptor_set_layout,
-            &uniform_buffers,
-        );
+        // let texture_image = Self::create_texture_image(&vk_context);
 
-        let app = TutorialApp {
+        let mut app = TutorialApp {
             start_time: Instant::now(),
-            uniform_buffers,
+            swap_chain_context: None,
+            // texture_image,
             index_buffer,
             vertex_buffer,
-            pipeline,
-            descriptor_sets,
-            descriptor_pool,
             descriptor_set_layout,
             vertex_shader_module,
             fragment_shader_module,
+            swap_chain_sync,
             vk_context,
         };
-        app.record_commands();
+        app.create_swap_chain();        
 
         app
     }
 
-    fn cleanup_swap_chain(&mut self) {
-        self.pipeline.cleanup(&self.vk_context.device);
-        self.cleanup_uniform_buffers();
-        self.descriptor_pool.cleanup(&self.vk_context.device);
-    }
-
     fn create_swap_chain(&mut self) {
         let context = &self.vk_context;
-        self.pipeline = Self::create_pipeline(
+        let pipeline = Self::create_pipeline(
             context,
             &self.vertex_shader_module,
             &self.fragment_shader_module,
             &self.descriptor_set_layout,
         );
-        self.uniform_buffers = Self::create_uniform_buffers(context);
-        self.descriptor_pool = Self::create_descriptor_pool(&context.device, &context.swap_chain);
-        self.descriptor_sets = Self::create_descriptor_sets(
+        let uniform_buffers = Self::create_uniform_buffers(context);
+        let descriptor_pool = Self::create_descriptor_pool(context);
+        let descriptor_sets = Self::create_descriptor_sets(
             &context.device,
-            &self.descriptor_pool,
+            &descriptor_pool,
             &self.descriptor_set_layout,
-            &self.uniform_buffers,
+            &uniform_buffers,
         );
+
+        self.swap_chain_context = Some(TutorialAppSwapChainContext {
+            pipeline,
+            uniform_buffers,
+            descriptor_sets,
+            descriptor_pool
+        });
+
         self.record_commands();
     }
 
     fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
         self.vk_context.device.wait_idle();
-        self.cleanup_swap_chain();
+        self.swap_chain_context = None;
         self.vk_context.cleanup_swap_chain();
         self.vk_context.recreate_swap_chain(size);
         self.create_swap_chain();
     }
 
-    fn create_descriptor_set_layout(device: &VkDevice) -> VkDescriptorSetLayout {
+    fn create_descriptor_set_layout(context: &VkContext) -> VkDescriptorSetLayout {
         let ubo_layout_binding = vk::DescriptorSetLayoutBinding::builder()
             .binding(0)
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(1)
             .stage_flags(vk::ShaderStageFlags::VERTEX);
-        VkDescriptorSetLayout::new(device, &[ubo_layout_binding.build()])
+        VkDescriptorSetLayout::new(&context.device, &[ubo_layout_binding.build()])
     }
 
     fn create_pipeline(
@@ -163,8 +154,6 @@ impl TutorialApp {
 
     fn create_vertex_buffer(context: &VkContext) -> VkBuffer {
         VkBuffer::new_device_local(
-            &context.instance,
-            &context.physical_device,
             &context.device,
             &context.command_pool,
             context.device.graphics_queue,
@@ -175,8 +164,6 @@ impl TutorialApp {
 
     fn create_index_buffer(context: &VkContext) -> VkBuffer {
         VkBuffer::new_device_local(
-            &context.instance,
-            &context.physical_device,
             &context.device,
             &context.command_pool,
             context.device.graphics_queue,
@@ -193,8 +180,6 @@ impl TutorialApp {
         (0..count)
             .map(|_| {
                 VkBuffer::new(
-                    &context.instance,
-                    &context.physical_device,
                     &context.device,
                     vk::BufferUsageFlags::UNIFORM_BUFFER,
                     vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
@@ -204,19 +189,17 @@ impl TutorialApp {
             .collect::<Vec<_>>()
     }
 
-    fn cleanup_uniform_buffers(&self) {
-        let device = &self.vk_context.device;
-        self.uniform_buffers
-            .iter()
-            .for_each(|buffer| buffer.cleanup(device));
-    }
-
     fn update_uniform_buffer(&self, image_index: usize, elapsed_time: f32) {
+        let swap_context = match &self.swap_chain_context {
+            Some(ref context) => context,
+            None => return
+        };
+
         let extent = self.vk_context.swap_chain.swap_extent;
         let screen_width = extent.width as f32;
         let screen_height = extent.height as f32;
         let ubo = UniformBufferObject {
-            model: Mat4::rotate_z(elapsed_time),           
+            model: Mat4::rotate_z(elapsed_time),
             view: Mat4::look_at(
                 &Vec3::new(0.0, 0.0, 5.0),
                 &Vec3::new(0.0, 0.0, 0.0),
@@ -225,14 +208,14 @@ impl TutorialApp {
             proj: Mat4::perspective(0.785, screen_width / screen_height, 0.1, 10.0),
         };
 
-        self.uniform_buffers[image_index].map_memory(&self.vk_context.device, &[ubo]);
+        swap_context.uniform_buffers[image_index].map_memory(&self.vk_context.device, &[ubo]);
     }
 
-    fn create_descriptor_pool(device: &VkDevice, swap_chain: &VkSwapChain) -> VkDescriptorPool {
+    fn create_descriptor_pool(context: &VkContext) -> VkDescriptorPool {
         VkDescriptorPool::new(
-            device,
+            &context.device,
             vk::DescriptorType::UNIFORM_BUFFER,
-            swap_chain.image_count,
+            context.swap_chain.image_count,
         )
     }
 
@@ -252,6 +235,7 @@ impl TutorialApp {
             .build();
         let descriptor_sets = unsafe {
             device
+                .handle
                 .allocate_descriptor_sets(&alloc_info)
                 .expect("Unable to create descriptor sets")
         };
@@ -277,15 +261,27 @@ impl TutorialApp {
 
                 let descriptor_writes = [ubo_descriptor_write];
 
-                unsafe { device.update_descriptor_sets(&descriptor_writes, &[]) }
+                unsafe {
+                    device
+                        .handle
+                        .update_descriptor_sets(&descriptor_writes, &[])
+                }
             });
 
         descriptor_sets
     }
 
+    fn create_texture_image(context: &VkContext) -> VkImage {
+        todo!()
+    }
+
     fn record_commands(&self) {
         let context = &self.vk_context;
-        let device = &context.device.handle;
+        let device = &context.device.handle;        
+        let swap_context = match &self.swap_chain_context {
+            Some(ref context) => context,
+            None => return
+        };
 
         for (index, &buffer) in context.command_buffers.iter().enumerate() {
             let command_begin_info = vk::CommandBufferBeginInfo::builder();
@@ -320,7 +316,7 @@ impl TutorialApp {
                 device.cmd_bind_pipeline(
                     buffer,
                     vk::PipelineBindPoint::GRAPHICS,
-                    self.pipeline.handle,
+                    swap_context.pipeline.handle,
                 );
 
                 let buffers = [self.vertex_buffer.handle];
@@ -335,9 +331,9 @@ impl TutorialApp {
                 device.cmd_bind_descriptor_sets(
                     buffer,
                     vk::PipelineBindPoint::GRAPHICS,
-                    self.pipeline.layout,
+                    swap_context.pipeline.layout,
                     0,
-                    &self.descriptor_sets[index..=index],
+                    &swap_context.descriptor_sets[index..=index],
                     &[],
                 );
                 device.cmd_draw_indexed(buffer, INDICES.len() as u32, 1, 0, 0, 0);
@@ -351,13 +347,14 @@ impl TutorialApp {
 
     fn acquire_image(
         &mut self,
-        current_frame: usize,
-        fence: VkFence,
         window: &Window,
     ) -> Option<usize> {
-        let context = &mut self.vk_context;
-        let sync = &mut context.swap_chain_sync;
+        let context = &self.vk_context;
+        let sync = &mut self.swap_chain_sync;
         let device = &context.device.handle;
+
+        let current_frame = sync.current_frame;
+        let fence = &sync.in_flight_fences[current_frame];
 
         unsafe {
             let fences = [fence.handle];
@@ -377,7 +374,7 @@ impl TutorialApp {
             }
         };
 
-        if let Some(fence) = sync.images_in_flight[image_index] {
+        if let Some(ref fence) = sync.images_in_flight[image_index] {
             unsafe {
                 let fences = [fence.handle];
                 device
@@ -386,7 +383,7 @@ impl TutorialApp {
             }
         }
 
-        sync.images_in_flight[image_index] = Some(fence);
+        sync.images_in_flight[image_index] = Some(fence.clone());
 
         Some(image_index)
     }
@@ -408,25 +405,23 @@ impl App for TutorialApp {
     fn draw_frame(&mut self, window: &Window) {
         log::info!("Drawing");
 
-        let current_frame = self.vk_context.swap_chain_sync.current_frame;
-        let fence = self.vk_context.swap_chain_sync.in_flight_fences[current_frame];
-
-        let image_index = match self.acquire_image(current_frame, fence, window) {
+        let image_index = match self.acquire_image(window) {
             Some(index) => index,
             None => return,
         };
 
+        let current_frame = self.swap_chain_sync.current_frame;
+        let fence = &self.swap_chain_sync.in_flight_fences[current_frame];
         let elapsed_time = self.start_time.elapsed().as_secs_f32();
         self.update_uniform_buffer(image_index, elapsed_time);
 
-        let context = &mut self.vk_context;
-        let sync = &mut context.swap_chain_sync;
+        let context = &self.vk_context;        
         let device = &context.device.handle;
 
-        let wait_semaphores = [sync.image_available_semaphore[current_frame].handle];
+        let wait_semaphores = [self.swap_chain_sync.image_available_semaphore[current_frame].handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let command_buffers = [context.command_buffers[image_index as usize]];
-        let signal_semaphores = [sync.render_finished_semaphore[current_frame].handle];
+        let signal_semaphores = [self.swap_chain_sync.render_finished_semaphore[current_frame].handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)
             .wait_dst_stage_mask(&wait_stages)
@@ -458,7 +453,7 @@ impl App for TutorialApp {
                 .queue_present(context.device.presentation_queue, &present_info)
         };
 
-        sync.current_frame = (sync.current_frame + 1) % sync.max_frames_in_flight;
+        self.swap_chain_sync.advance_frame();
 
         match result {
             Ok(true) | Err(_) => {
@@ -466,16 +461,5 @@ impl App for TutorialApp {
             }
             Ok(false) => (),
         }
-    }
-}
-
-impl Drop for TutorialApp {
-    fn drop(&mut self) {
-        self.index_buffer.cleanup(&self.vk_context.device);
-        self.vertex_buffer.cleanup(&self.vk_context.device);
-        self.cleanup_swap_chain();
-        self.descriptor_set_layout.cleanup(&self.vk_context.device);
-        self.vertex_shader_module.cleanup(&self.vk_context.device);
-        self.fragment_shader_module.cleanup(&self.vk_context.device);
     }
 }

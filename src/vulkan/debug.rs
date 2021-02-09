@@ -2,6 +2,8 @@ use std::ffi::{c_void, CStr, CString};
 
 use ash::{extensions::ext::DebugUtils, version::EntryV1_0, vk, Entry};
 
+use super::instance::VkInstance;
+
 const REQUIRED_LAYERS: [&str; 1] = ["VK_LAYER_KHRONOS_validation"];
 
 pub struct VkValidation {
@@ -10,8 +12,8 @@ pub struct VkValidation {
 }
 
 impl VkValidation {
-    pub fn new(entry: &ash::Entry, instance: &ash::Instance) -> VkValidation {
-        let extension = DebugUtils::new(entry, instance);
+    pub fn new(entry: &ash::Entry, instance: &VkInstance) -> VkValidation {
+        let extension = DebugUtils::new(entry, &instance.handle);
         let messanger_ci = populate_debug_messenger_create_info();
 
         let messenger = unsafe {
@@ -25,8 +27,10 @@ impl VkValidation {
             messenger,
         }
     }
+}
 
-    pub fn cleanup(&mut self) {
+impl Drop for VkValidation {
+    fn drop(&mut self) {
         log::debug!("Dropping validation");
         unsafe {
             self.extension

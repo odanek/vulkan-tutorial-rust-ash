@@ -7,14 +7,15 @@ use ash::{
 };
 
 use std::{
-    ffi::{CStr, CString},
-    ops::Deref,
+    ffi::{CStr, CString}
 };
 
 use super::debug::*;
 use super::utils::*;
 
-pub struct VkInstance(ash::Instance);
+pub struct VkInstance {
+    pub handle: ash::Instance
+}
 
 impl VkInstance {
     pub fn new(window: &Window, entry: &ash::Entry, validation: bool) -> VkInstance {
@@ -42,35 +43,32 @@ impl VkInstance {
             instance_create_info = instance_create_info
                 .enabled_layer_names(&validation_layer_names)
                 .push_next(&mut debug_utils_create_info);
-            build_instance(entry, instance_create_info)
-        } else {
-            build_instance(entry, instance_create_info)
-        }
-    }
 
-    pub fn cleanup(&mut self) {
-        log::debug!("Dropping instance");
-        unsafe {
-            self.0.destroy_instance(None);
+            build_instance(entry, instance_create_info)           
+        } else {
+            build_instance(entry, instance_create_info)        
         }
     }
 }
 
-impl Deref for VkInstance {
-    type Target = ash::Instance;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Drop for VkInstance {
+    fn drop(&mut self) {
+        log::debug!("Dropping instance");
+        unsafe {
+            self.handle.destroy_instance(None);
+        }
     }
 }
 
 fn build_instance(entry: &ash::Entry, info: vk::InstanceCreateInfoBuilder) -> VkInstance {
-    let instance = unsafe {
+    let handle = unsafe {
         entry
             .create_instance(&info, None)
             .expect("Unable t ocreate Vulkan instance")
     };
-    VkInstance(instance)
+    VkInstance {
+        handle
+    }
 }
 
 fn enumerate_extensions(window: &Window, validation: bool) -> Vec<&'static CStr> {
