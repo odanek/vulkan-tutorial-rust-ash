@@ -5,8 +5,8 @@ use super::{device::VkDevice, fence::VkFence, semaphore::VkSemaphore, swap_chain
 pub struct VkSwapChainSync {
     pub max_frames_in_flight: usize,
     pub current_frame: usize,
-    pub image_available_semaphore: Vec<Rc<VkSemaphore>>,
-    pub render_finished_semaphore: Vec<Rc<VkSemaphore>>,
+    pub image_available_semaphore: Vec<VkSemaphore>,
+    pub render_finished_semaphore: Vec<VkSemaphore>,
     pub in_flight_fences: Vec<Rc<VkFence>>,
     pub images_in_flight: Vec<Option<Rc<VkFence>>>,
 }
@@ -39,9 +39,9 @@ impl VkSwapChainSync {
     }
 }
 
-fn create_semaphores(device: &Arc<VkDevice>, count: usize) -> Vec<Rc<VkSemaphore>> {
+fn create_semaphores(device: &Arc<VkDevice>, count: usize) -> Vec<VkSemaphore> {
     (0..count)
-        .map(|_| Rc::new(VkSemaphore::new(device)))
+        .map(|_| VkSemaphore::new(device))
         .collect::<Vec<_>>()
 }
 

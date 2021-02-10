@@ -293,6 +293,7 @@ impl ops::Mul<&Vec4> for &Mat4 {
         let z = rhs.z();
         let w = rhs.w();
 
+        #[cfg_attr(rustfmt, rustfmt::skip)]
         Vec4::new(
             m[0] * x + m[4] * y + m[8] * z + m[12] * w,
             m[1] * x + m[5] * y + m[9] * z + m[13] * w,

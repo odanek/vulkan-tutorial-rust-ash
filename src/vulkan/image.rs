@@ -1,20 +1,74 @@
-use ash::vk;
+use std::sync::Arc;
+
+use ash::{version::DeviceV1_0, vk};
 
 use super::VkDevice;
 
 pub struct VkImage {
+    device: Arc<VkDevice>,
     pub handle: vk::Image,
     pub memory: vk::DeviceMemory,
-    pub size: u64,
+    pub extent: vk::Extent3D,
 }
 
 impl VkImage {
-    pub fn new() -> VkImage {
-        todo!();
+    pub fn new(
+        device: &Arc<VkDevice>,
+        properties: vk::MemoryPropertyFlags,
+        extent: vk::Extent3D,
+        mip_levels: u32,
+        sample_count: vk::SampleCountFlags,
+        format: vk::Format,
+        tiling: vk::ImageTiling,
+        usage: vk::ImageUsageFlags,
+    ) -> VkImage {
+        let image_info = vk::ImageCreateInfo::builder()
+            .image_type(vk::ImageType::TYPE_2D)
+            .extent(extent)
+            .mip_levels(mip_levels)
+            .array_layers(1)
+            .format(format)
+            .tiling(tiling)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .usage(usage)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .samples(sample_count)
+            .flags(vk::ImageCreateFlags::empty())
+            .build();
+
+        let handle = unsafe { device.handle.create_image(&image_info, None).unwrap() };
+        let mem_requirements = unsafe { device.handle.get_image_memory_requirements(handle) };
+        let mem_type_index = device.find_memory_type(mem_requirements, properties);
+
+        let alloc_info = vk::MemoryAllocateInfo::builder()
+            .allocation_size(mem_requirements.size)
+            .memory_type_index(mem_type_index)
+            .build();
+        let memory = unsafe {
+            let mem = device.handle.allocate_memory(&alloc_info, None).unwrap();
+            device.handle.bind_image_memory(handle, mem, 0).unwrap();
+            mem
+        };
+
+        VkImage {
+            device: Arc::clone(device),
+            handle,
+            memory,
+            extent
+        }
     }
 
     pub fn load_file(device: &VkDevice, file_name: &str) -> VkImage {
         todo!();
+    }
+}
+
+impl Drop for VkImage {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.handle.destroy_image(self.handle, None);
+            self.device.handle.free_memory(self.memory, None);
+        }
     }
 }
 
@@ -128,56 +182,6 @@ impl VkImage {
 //     };
 
 //     Texture::new(image, image_memory, image_view, Some(sampler))
-// }
-
-// fn create_image(
-//     vk_context: &VkContext,
-//     mem_properties: vk::MemoryPropertyFlags,
-//     extent: vk::Extent2D,
-//     mip_levels: u32,
-//     sample_count: vk::SampleCountFlags,
-//     format: vk::Format,
-//     tiling: vk::ImageTiling,
-//     usage: vk::ImageUsageFlags,
-// ) -> (vk::Image, vk::DeviceMemory) {
-//     let image_info = vk::ImageCreateInfo::builder()
-//         .image_type(vk::ImageType::TYPE_2D)
-//         .extent(vk::Extent3D {
-//             width: extent.width,
-//             height: extent.height,
-//             depth: 1,
-//         })
-//         .mip_levels(mip_levels)
-//         .array_layers(1)
-//         .format(format)
-//         .tiling(tiling)
-//         .initial_layout(vk::ImageLayout::UNDEFINED)
-//         .usage(usage)
-//         .sharing_mode(vk::SharingMode::EXCLUSIVE)
-//         .samples(sample_count)
-//         .flags(vk::ImageCreateFlags::empty())
-//         .build();
-
-//     let device = vk_context.device();
-//     let image = unsafe { device.create_image(&image_info, None).unwrap() };
-//     let mem_requirements = unsafe { device.get_image_memory_requirements(image) };
-//     let mem_type_index = Self::find_memory_type(
-//         mem_requirements,
-//         vk_context.get_mem_properties(),
-//         mem_properties,
-//     );
-
-//     let alloc_info = vk::MemoryAllocateInfo::builder()
-//         .allocation_size(mem_requirements.size)
-//         .memory_type_index(mem_type_index)
-//         .build();
-//     let memory = unsafe {
-//         let mem = device.allocate_memory(&alloc_info, None).unwrap();
-//         device.bind_image_memory(image, mem, 0).unwrap();
-//         mem
-//     };
-
-//     (image, memory)
 // }
 
 // fn transition_image_layout(

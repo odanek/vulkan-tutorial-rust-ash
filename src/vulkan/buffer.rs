@@ -124,8 +124,6 @@ impl Drop for VkBuffer {
     fn drop(&mut self) {
         unsafe {
             self.device.handle.destroy_buffer(self.handle, None);
-        }
-        unsafe {
             self.device.handle.free_memory(self.memory, None);
         }
     }
@@ -150,9 +148,8 @@ fn assign_buffer_memory(
     buffer: vk::Buffer,
     properties: vk::MemoryPropertyFlags,
 ) -> vk::DeviceMemory {
-    let mem_requirements = unsafe { device.handle.get_buffer_memory_requirements(buffer) };
-    let physical_mem_properties = device.physical_device.get_mem_properties();
-    let mem_type_index = find_memory_type(mem_requirements, physical_mem_properties, properties);
+    let mem_requirements = unsafe { device.handle.get_buffer_memory_requirements(buffer) };    
+    let mem_type_index = device.find_memory_type(mem_requirements, properties);
 
     let alloc_info = vk::MemoryAllocateInfo::builder()
         .allocation_size(mem_requirements.size)
@@ -170,21 +167,4 @@ fn assign_buffer_memory(
         vertex_buffer_memory
     };
     memory
-}
-
-fn find_memory_type(
-    requirements: vk::MemoryRequirements,
-    mem_properties: vk::PhysicalDeviceMemoryProperties,
-    required_properties: vk::MemoryPropertyFlags,
-) -> u32 {
-    for i in 0..mem_properties.memory_type_count {
-        if requirements.memory_type_bits & (1 << i) != 0
-            && mem_properties.memory_types[i as usize]
-                .property_flags
-                .contains(required_properties)
-        {
-            return i;
-        }
-    }
-    panic!("Failed to find suitable memory type.")
 }

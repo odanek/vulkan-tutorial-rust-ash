@@ -77,6 +77,24 @@ impl VkDevice {
         }
     }
 
+    pub fn find_memory_type(
+        &self,
+        requirements: vk::MemoryRequirements,
+        required_properties: vk::MemoryPropertyFlags,
+    ) -> u32 {
+        let mem_properties = self.physical_device.get_mem_properties();
+        for i in 0..mem_properties.memory_type_count {
+            if requirements.memory_type_bits & (1 << i) != 0
+                && mem_properties.memory_types[i as usize]
+                    .property_flags
+                    .contains(required_properties)
+            {
+                return i;
+            }
+        }
+        panic!("Failed to find suitable memory type.")
+    }
+
     pub fn wait_idle(&self) {
         log::debug!("Waiting device idle");
 
