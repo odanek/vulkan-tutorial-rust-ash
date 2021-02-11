@@ -7,8 +7,8 @@ pub struct VkSwapChainSync {
     pub current_frame: usize,
     pub image_available_semaphore: Vec<VkSemaphore>,
     pub render_finished_semaphore: Vec<VkSemaphore>,
-    pub in_flight_fences: Vec<Rc<VkFence>>,
-    pub images_in_flight: Vec<Option<Rc<VkFence>>>,
+    pub in_flight_fences: Vec<VkFence>,
+    pub images_in_flight: Vec<Option<usize>>,
 }
 
 impl VkSwapChainSync {
@@ -45,6 +45,6 @@ fn create_semaphores(device: &Arc<VkDevice>, count: usize) -> Vec<VkSemaphore> {
         .collect::<Vec<_>>()
 }
 
-fn create_fences(device: &Arc<VkDevice>, count: usize) -> Vec<Rc<VkFence>> {
-    (0..count).map(|_| Rc::new(VkFence::new(device))).collect::<Vec<_>>()
+fn create_fences(device: &Arc<VkDevice>, count: usize) -> Vec<VkFence> {
+    (0..count).map(|_| VkFence::new(device)).collect::<Vec<_>>()
 }

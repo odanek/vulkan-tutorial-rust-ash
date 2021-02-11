@@ -43,7 +43,7 @@ pub struct TutorialAppSwapChainContext {
 pub struct TutorialApp {
     start_time: Instant,
     swap_chain_context: Option<TutorialAppSwapChainContext>,
-    texture_image: VkImage,
+    // texture_image: VkImage,
     index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
     descriptor_set_layout: VkDescriptorSetLayout,
@@ -73,12 +73,12 @@ impl TutorialApp {
         let descriptor_set_layout = Self::create_descriptor_set_layout(&vk_context);
         let vertex_buffer = Self::create_vertex_buffer(&vk_context);
         let index_buffer = Self::create_index_buffer(&vk_context);
-        let texture_image = Self::create_texture_image(&vk_context);
+        // let texture_image = Self::create_texture_image(&vk_context);
 
         let mut app = TutorialApp {
             start_time: Instant::now(),
             swap_chain_context: None,
-            texture_image,
+            // texture_image,
             index_buffer,
             vertex_buffer,
             descriptor_set_layout,
@@ -355,7 +355,8 @@ impl TutorialApp {
         let device = &context.device.handle;
 
         let current_frame = sync.current_frame;
-        let fence = &sync.in_flight_fences[current_frame];
+        let sync_fences = &sync.in_flight_fences;
+        let fence = &sync_fences[current_frame];
 
         unsafe {
             let fences = [fence.handle];
@@ -375,16 +376,16 @@ impl TutorialApp {
             }
         };
 
-        if let Some(ref fence) = sync.images_in_flight[image_index] {
+        if let Some(fence_index) = sync.images_in_flight[image_index] {
             unsafe {
-                let fences = [fence.handle];
+                let fences = [sync_fences[fence_index].handle];
                 device
                     .wait_for_fences(&fences, true, std::u64::MAX)
                     .expect("Waiting for fence failed");
             }
         }
 
-        sync.images_in_flight[image_index] = Some(fence.clone());
+        sync.images_in_flight[image_index] = Some(current_frame);
 
         Some(image_index)
     }

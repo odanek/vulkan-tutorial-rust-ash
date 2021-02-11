@@ -8,7 +8,7 @@ use ash::{
 };
 
 use super::{
-    device::VkDevice, physical_device::VkPhysicalDevice, render_pass::VkRenderPass,
+    device::VkDevice, render_pass::VkRenderPass,
     semaphore::VkSemaphore, surface::VkSurface,
 };
 
