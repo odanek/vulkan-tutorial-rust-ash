@@ -28,7 +28,7 @@ impl VkCommandPool {
         }
     }
 
-    pub fn create_command_buffers(&self, device: &VkDevice, count: u32) -> Vec<vk::CommandBuffer> {
+    pub fn create_command_buffers(&self, count: u32) -> Vec<vk::CommandBuffer> {
         log::info!("Creating {} command buffers", count);
 
         let buffer_info = vk::CommandBufferAllocateInfo::builder()
@@ -37,7 +37,7 @@ impl VkCommandPool {
             .command_buffer_count(count);
 
         unsafe {
-            device
+            self.device
                 .handle
                 .allocate_command_buffers(&buffer_info)
                 .expect("Unable to allocate command buffers")
@@ -45,7 +45,7 @@ impl VkCommandPool {
     }
 
     pub fn create_command_buffer(&self) -> vk::CommandBuffer {
-        self.create_command_buffers(&self.device, 1)[0]
+        self.create_command_buffers(1)[0]
     }
 
     pub fn clear_command_buffer(&self, buffer: vk::CommandBuffer) {
@@ -64,6 +64,49 @@ impl VkCommandPool {
                 .free_command_buffers(self.handle, buffers)
         };
         buffers.clear();
+    }
+
+    pub fn execute_one_time_commands<F: FnOnce(&VkDevice, vk::CommandBuffer)>(        
+        &self,
+        queue: vk::Queue,
+        executor: F,
+    ) {
+        let command_buffers = self.create_command_buffers(1);
+        let command_buffer = command_buffers[0];
+        let device = &self.device;
+
+        let command_begin_info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        unsafe {
+            device
+                .handle
+                .begin_command_buffer(command_buffer, &command_begin_info)
+                .expect("Unable to begin command buffer")
+        };
+
+        // Execute user function
+        executor(device, command_buffer);
+
+        unsafe
+        {
+            device
+                .handle
+                .end_command_buffer(command_buffer)
+                .expect("Unable to end command buffer");
+
+            let submit_info = vk::SubmitInfo::builder().command_buffers(&command_buffers);
+            let infos = [submit_info.build()];
+            device
+                .handle
+                .queue_submit(queue, &infos, vk::Fence::null())
+                .expect("Unable to submit queue");
+            device
+                .handle
+                .queue_wait_idle(queue)
+                .expect("Unable to wait for queue idle state");
+        }
+
+        self.clear_command_buffers(&mut command_buffers);
     }
 }
 

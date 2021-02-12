@@ -43,7 +43,7 @@ pub struct TutorialAppSwapChainContext {
 pub struct TutorialApp {
     start_time: Instant,
     swap_chain_context: Option<TutorialAppSwapChainContext>,
-    // texture_image: VkImage,
+    texture_image: VkImage,
     index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
     descriptor_set_layout: VkDescriptorSetLayout,
@@ -73,12 +73,12 @@ impl TutorialApp {
         let descriptor_set_layout = Self::create_descriptor_set_layout(&vk_context);
         let vertex_buffer = Self::create_vertex_buffer(&vk_context);
         let index_buffer = Self::create_index_buffer(&vk_context);
-        // let texture_image = Self::create_texture_image(&vk_context);
+        let texture_image = Self::create_texture_image(&vk_context);
 
         let mut app = TutorialApp {
             start_time: Instant::now(),
             swap_chain_context: None,
-            // texture_image,
+            texture_image,
             index_buffer,
             vertex_buffer,
             descriptor_set_layout,
@@ -208,7 +208,7 @@ impl TutorialApp {
             proj: Mat4::perspective(0.785, screen_width / screen_height, 0.1, 10.0),
         };
 
-        swap_context.uniform_buffers[image_index].map_memory(&self.vk_context.device, &[ubo]);
+        swap_context.uniform_buffers[image_index].map_memory(&[ubo]);
     }
 
     fn create_descriptor_pool(context: &VkContext) -> VkDescriptorPool {

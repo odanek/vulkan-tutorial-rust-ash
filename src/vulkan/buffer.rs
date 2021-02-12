@@ -45,7 +45,7 @@ impl VkBuffer {
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
             size,
         );
-        staging_buffer.map_memory(device, data);
+        staging_buffer.map_memory(data);
 
         let buffer = VkBuffer::new(
             device,
@@ -55,68 +55,37 @@ impl VkBuffer {
         );
 
         log::info!("Copying buffer data");
-        VkBuffer::copy( &staging_buffer, &buffer, command_pool, queue);        
+        VkBuffer::copy(&staging_buffer, &buffer, command_pool, queue);
 
         buffer
     }
 
-    pub fn map_memory<T: Copy>(&self, device: &VkDevice, data: &[T]) {
+    pub fn map_memory<T: Copy>(&self, data: &[T]) {
         unsafe {
-            let ptr = device
+            let ptr = self
+                .device
                 .handle
                 .map_memory(self.memory, 0, self.size, vk::MemoryMapFlags::empty())
                 .expect("Unable to map memory");
             let mut align = ash::util::Align::new(ptr, align_of::<u8>() as _, self.size);
             align.copy_from_slice(data);
-            device.handle.unmap_memory(self.memory);
+            self.device.handle.unmap_memory(self.memory);
         }
     }
 
-    pub fn copy(        
-        src: &VkBuffer,
-        dst: &VkBuffer,
-        command_pool: &VkCommandPool,
-        queue: vk::Queue,
-    ) {
-        let device = &src.device;
-        let command_buffer = command_pool.create_command_buffer();
-        let command_begin_info = vk::CommandBufferBeginInfo::builder()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-        unsafe {
-            device
-                .handle
-                .begin_command_buffer(command_buffer, &command_begin_info)
-                .expect("Unable to begin command buffer")
-        };
-
-        unsafe {
-            let regions = [vk::BufferCopy {
-                src_offset: 0,
-                dst_offset: 0,
-                size: src.size,
-            }];
-            device
-                .handle
-                .cmd_copy_buffer(command_buffer, src.handle, dst.handle, &regions);
-            device
-                .handle
-                .end_command_buffer(command_buffer)
-                .expect("Unable to end command buffer");
-
-            let command_buffers = [command_buffer];
-            let submit_info = vk::SubmitInfo::builder().command_buffers(&command_buffers);
-            let infos = [submit_info.build()];
-            device
-                .handle
-                .queue_submit(queue, &infos, vk::Fence::null())
-                .expect("Unable to submit queue");
-            device
-                .handle
-                .queue_wait_idle(queue)
-                .expect("Unable to wait for queue idle state");
-        }
-
-        command_pool.clear_command_buffer(command_buffer);
+    pub fn copy(src: &VkBuffer, dst: &VkBuffer, command_pool: &VkCommandPool, queue: vk::Queue) {
+        command_pool.execute_one_time_commands(queue, |device, command_buffer| {
+            unsafe {
+                let regions = [vk::BufferCopy {
+                    src_offset: 0,
+                    dst_offset: 0,
+                    size: src.size,
+                }];
+                device
+                    .handle
+                    .cmd_copy_buffer(command_buffer, src.handle, dst.handle, &regions);
+            }    
+        });
     }
 }
 
@@ -148,7 +117,7 @@ fn assign_buffer_memory(
     buffer: vk::Buffer,
     properties: vk::MemoryPropertyFlags,
 ) -> vk::DeviceMemory {
-    let mem_requirements = unsafe { device.handle.get_buffer_memory_requirements(buffer) };    
+    let mem_requirements = unsafe { device.handle.get_buffer_memory_requirements(buffer) };
     let mem_type_index = device.find_memory_type(mem_requirements, properties);
 
     let alloc_info = vk::MemoryAllocateInfo::builder()

@@ -46,7 +46,7 @@ impl VkContext {
         log::info!("Creating swap-chain command pool");
         let command_pool = VkCommandPool::new(&device, device.graphics_queue_family);
         log::info!("Creating swap-chain command buffers");
-        let command_buffers = command_pool.create_command_buffers(&device, swap_chain.image_count);        
+        let command_buffers = command_pool.create_command_buffers(swap_chain.image_count);        
 
         VkContext {
             command_buffers,
@@ -79,7 +79,7 @@ impl VkContext {
         self.swap_chain
             .create_frame_buffers(&self.device, &self.render_pass);
         self.command_buffers = self.command_pool
-            .create_command_buffers(&self.device, self.swap_chain.image_count);
+            .create_command_buffers(self.swap_chain.image_count);
     }
 }
 
