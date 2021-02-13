@@ -29,6 +29,7 @@ impl VkFence {
 
 impl Drop for VkFence {
     fn drop(&mut self) {
+        log::debug!("Dropping fence");
         unsafe {
             self.device.handle.destroy_fence(self.handle, None);
         }

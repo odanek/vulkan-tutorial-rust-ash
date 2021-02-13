@@ -61,6 +61,7 @@ impl VkShaderModule {
 
 impl Drop for VkShaderModule {
     fn drop(&mut self) {
+        log::debug!("Dropping shader module");
         unsafe {
             self.device.handle.destroy_shader_module(self.handle, None);
         }

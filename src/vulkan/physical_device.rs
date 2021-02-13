@@ -56,6 +56,12 @@ impl VkPhysicalDevice {
         }
     }
 
+    pub fn get_format_properties(&self, format: vk::Format) -> vk::FormatProperties {
+        unsafe {
+            self.instance.handle.get_physical_device_format_properties(self.handle, format)
+        }
+    }
+
     pub fn get_required_device_extensions() -> Vec<&'static CStr> {
         vec![Swapchain::name()]
     }

@@ -30,6 +30,7 @@ impl VkDescriptorSetLayout {
 
 impl Drop for VkDescriptorSetLayout {
     fn drop(&mut self) {
+        log::debug!("Dropping descriptor set layout");
         unsafe {
             self.device
                 .handle
@@ -70,6 +71,7 @@ impl VkDescriptorPool {
 
 impl Drop for VkDescriptorPool {
     fn drop(&mut self) {
+        log::debug!("Dropping descriptor pool");
         unsafe {
             self.device
                 .handle

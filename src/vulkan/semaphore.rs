@@ -28,6 +28,7 @@ impl VkSemaphore {
 
 impl Drop for VkSemaphore {
     fn drop(&mut self) {
+        log::debug!("Dropping semaphore");
         unsafe {
             self.device.handle.destroy_semaphore(self.handle, None);
         }

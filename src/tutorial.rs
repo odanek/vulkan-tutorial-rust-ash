@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::{app::App, render::{Mat4, Vec3, Vertex}, vulkan::{VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkFence, VkImage, VkPipeline, VkSettings, VkShaderModule, VkSwapChain, VkSwapChainSync}};
+use crate::{app::App, render::{Mat4, Vec3, Vertex}, vulkan::{VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkFence, VkImage, VkPipeline, VkSettings, VkShaderModule, VkSwapChain, VkSwapChainSync, VkTexture}};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -43,7 +43,7 @@ pub struct TutorialAppSwapChainContext {
 pub struct TutorialApp {
     start_time: Instant,
     swap_chain_context: Option<TutorialAppSwapChainContext>,
-    texture_image: VkImage,
+    texture_image: VkTexture,
     index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
     descriptor_set_layout: VkDescriptorSetLayout,
@@ -87,7 +87,7 @@ impl TutorialApp {
             swap_chain_sync,
             vk_context,
         };
-        app.create_swap_chain();        
+        app.create_swap_chain();
 
         app
     }
@@ -113,7 +113,7 @@ impl TutorialApp {
             pipeline,
             uniform_buffers,
             descriptor_sets,
-            descriptor_pool
+            descriptor_pool,
         });
 
         self.record_commands();
@@ -192,7 +192,7 @@ impl TutorialApp {
     fn update_uniform_buffer(&self, image_index: usize, elapsed_time: f32) {
         let swap_context = match &self.swap_chain_context {
             Some(ref context) => context,
-            None => return
+            None => return,
         };
 
         let extent = self.vk_context.swap_chain.swap_extent;
@@ -271,16 +271,21 @@ impl TutorialApp {
         descriptor_sets
     }
 
-    fn create_texture_image(context: &VkContext) -> VkImage {
-        todo!()
+    fn create_texture_image(context: &VkContext) -> VkTexture {        
+        VkImage::load_texture(
+            &context.device,
+            &context.command_pool,
+            context.device.graphics_queue, // TODO: Use transfer queue
+            "assets/texture.jpg",
+        )
     }
 
     fn record_commands(&self) {
         let context = &self.vk_context;
-        let device = &context.device.handle;        
+        let device = &context.device.handle;
         let swap_context = match &self.swap_chain_context {
             Some(ref context) => context,
-            None => return
+            None => return,
         };
 
         for (index, &buffer) in context.command_buffers.iter().enumerate() {
@@ -346,10 +351,7 @@ impl TutorialApp {
     }
 
     // TODO Move to swap chain sync
-    fn acquire_image(
-        &mut self,
-        window: &Window,
-    ) -> Option<usize> {
+    fn acquire_image(&mut self, window: &Window) -> Option<usize> {
         let context = &self.vk_context;
         let sync = &mut self.swap_chain_sync;
         let device = &context.device.handle;
@@ -417,13 +419,15 @@ impl App for TutorialApp {
         let elapsed_time = self.start_time.elapsed().as_secs_f32();
         self.update_uniform_buffer(image_index, elapsed_time);
 
-        let context = &self.vk_context;        
+        let context = &self.vk_context;
         let device = &context.device.handle;
 
-        let wait_semaphores = [self.swap_chain_sync.image_available_semaphore[current_frame].handle];
+        let wait_semaphores =
+            [self.swap_chain_sync.image_available_semaphore[current_frame].handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let command_buffers = [context.command_buffers[image_index as usize]];
-        let signal_semaphores = [self.swap_chain_sync.render_finished_semaphore[current_frame].handle];
+        let signal_semaphores =
+            [self.swap_chain_sync.render_finished_semaphore[current_frame].handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)
             .wait_dst_stage_mask(&wait_stages)

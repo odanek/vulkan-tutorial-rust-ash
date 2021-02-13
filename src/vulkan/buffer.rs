@@ -91,6 +91,7 @@ impl VkBuffer {
 
 impl Drop for VkBuffer {
     fn drop(&mut self) {
+        log::debug!("Dropping buffer");
         unsafe {
             self.device.handle.destroy_buffer(self.handle, None);
             self.device.handle.free_memory(self.memory, None);

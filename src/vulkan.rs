@@ -1,8 +1,8 @@
 mod buffer;
 mod command;
 mod context;
-mod descriptor;
 mod debug;
+mod descriptor;
 mod device;
 mod fence;
 mod image;
@@ -20,13 +20,13 @@ mod swap_chain_sync;
 mod utils;
 mod version;
 
+pub use self::image::{VkImage, VkTexture};
 pub use buffer::VkBuffer;
 pub use command::VkCommandPool;
 pub use context::VkContext;
-pub use descriptor::{VkDescriptorSetLayout, VkDescriptorPool};
+pub use descriptor::{VkDescriptorPool, VkDescriptorSetLayout};
 pub use device::VkDevice;
 pub use fence::VkFence;
-pub use self::image::VkImage;
 pub use physical_device::VkPhysicalDevice;
 pub use pipeline::VkPipeline;
 pub use settings::VkSettings;

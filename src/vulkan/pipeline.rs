@@ -141,10 +141,11 @@ impl VkPipeline {
 impl Drop for VkPipeline {
     fn drop(&mut self) {
         log::debug!("Dropping pipeline");
-        
         unsafe {
             self.device.handle.destroy_pipeline(self.handle, None);
-            self.device.handle.destroy_pipeline_layout(self.layout, None);
+            self.device
+                .handle
+                .destroy_pipeline_layout(self.layout, None);
         }
     }
 }

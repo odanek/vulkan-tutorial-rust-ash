@@ -57,13 +57,12 @@ impl VkCommandPool {
         };
     }
 
-    pub fn clear_command_buffers(&self, buffers: &mut Vec<vk::CommandBuffer>) {
+    pub fn clear_command_buffers(&self, buffers: &Vec<vk::CommandBuffer>) {
         unsafe {
             self.device
                 .handle
                 .free_command_buffers(self.handle, buffers)
         };
-        buffers.clear();
     }
 
     pub fn execute_one_time_commands<F: FnOnce(&VkDevice, vk::CommandBuffer)>(        
@@ -106,7 +105,7 @@ impl VkCommandPool {
                 .expect("Unable to wait for queue idle state");
         }
 
-        self.clear_command_buffers(&mut command_buffers);
+        self.clear_command_buffers(&command_buffers);
     }
 }
 

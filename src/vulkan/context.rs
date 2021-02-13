@@ -85,6 +85,7 @@ impl VkContext {
 
 impl Drop for VkContext {
     fn drop(&mut self) {
+        log::debug!("Dropping Vulkan context");
         self.cleanup_swap_chain();
     }
 }
