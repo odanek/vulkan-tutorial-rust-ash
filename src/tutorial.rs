@@ -406,9 +406,7 @@ impl App for TutorialApp {
 
     fn minimized(&mut self, _window: &Window) {}
 
-    fn draw_frame(&mut self, window: &Window) {
-        log::info!("Drawing");
-
+    fn draw_frame(&mut self, window: &Window) {        
         let image_index = match self.acquire_image(window) {
             Some(index) => index,
             None => return,

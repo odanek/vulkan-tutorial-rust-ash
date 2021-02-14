@@ -62,6 +62,18 @@ impl VkPhysicalDevice {
         }
     }
 
+    pub fn get_device_features(&self) -> vk::PhysicalDeviceFeatures {
+        unsafe {
+            self.instance.handle.get_physical_device_features(self.handle)
+        }
+    }
+
+    pub fn get_device_properties(&self) -> vk::PhysicalDeviceProperties {
+        unsafe {
+            self.instance.handle.get_physical_device_properties(self.handle)
+        }
+    }
+
     pub fn get_required_device_extensions() -> Vec<&'static CStr> {
         vec![Swapchain::name()]
     }
@@ -115,8 +127,11 @@ fn describe_device(device: &VkPhysicalDevice) {
         log::info!("Supported commands: {:?}", queue_family.flags);
     }
 
-    // let features = unsafe { instance.get_physical_device_features(physical_device.handle) };
-    // log::info!("Geometry Shader support: {}", features.geometry_shader == 1);
+    let features = device.get_device_features();
+    log::info!("Geometry Shader support: {}", features.geometry_shader == 1);
+
+    let properties = device.get_device_properties();
+    log::info!("Max sampler anisotropy: {}", properties.limits.max_sampler_anisotropy);
 }
 
 fn rate_device_suitability(
@@ -142,6 +157,11 @@ fn rate_device_suitability(
 
     let surface_caps = surface.get_physical_device_surface_capabilities(device);
     if surface_caps.formats.is_empty() || surface_caps.present_modes.is_empty() {
+        return -1;
+    }
+
+    let features = device.get_device_features();
+    if features.sampler_anisotropy == vk::FALSE {
         return -1;
     }
 

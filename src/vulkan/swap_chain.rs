@@ -7,10 +7,7 @@ use ash::{
     vk::{self, SwapchainKHR},
 };
 
-use super::{
-    device::VkDevice, render_pass::VkRenderPass,
-    semaphore::VkSemaphore, surface::VkSurface,
-};
+use super::{VkImage, device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
 
 pub struct VkSwapChain {
     pub device: Arc<VkDevice>,
@@ -210,32 +207,6 @@ fn create_image_views(
 ) -> Vec<vk::ImageView> {
     images
         .iter()
-        .map(|&image| create_image_view(device, image, format))
+        .map(|&image| VkImage::create_image_view(device, image, 1, format, vk::ImageAspectFlags::COLOR))
         .collect::<Vec<_>>()
-}
-
-fn create_image_view(device: &VkDevice, image: vk::Image, format: vk::Format) -> vk::ImageView {
-    let create_info = vk::ImageViewCreateInfo::builder()
-        .image(image)
-        .view_type(vk::ImageViewType::TYPE_2D)
-        .format(format)
-        .components(vk::ComponentMapping {
-            r: vk::ComponentSwizzle::IDENTITY,
-            g: vk::ComponentSwizzle::IDENTITY,
-            b: vk::ComponentSwizzle::IDENTITY,
-            a: vk::ComponentSwizzle::IDENTITY,
-        })
-        .subresource_range(vk::ImageSubresourceRange {
-            aspect_mask: vk::ImageAspectFlags::COLOR,
-            base_mip_level: 0,
-            level_count: 1,
-            base_array_layer: 0,
-            layer_count: 1,
-        });
-    unsafe {
-        device
-            .handle
-            .create_image_view(&create_info, None)
-            .expect("Unable to create image view")
-    }
 }

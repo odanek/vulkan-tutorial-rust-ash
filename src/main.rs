@@ -31,6 +31,7 @@ fn main() {
     let mut app = TutorialApp::new(&window);    
     let mut exit = false;
 
+    log::info!("Starting event loop");
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {
             // app.update();
@@ -52,18 +53,12 @@ fn main() {
                     app.minimized(&window);
                 }
             }
-            _ => (),
+            _ => *control_flow = ControlFlow::Poll,
         },
         // Event::RedrawRequested(_window_id) => {
         //     app.draw_frame(&window);
         // }
-        // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
-        // dispatched any events. This is ideal for games and similar applications.
         _ => *control_flow = ControlFlow::Poll,
-        // ControlFlow::Wait pauses the event loop if no events are available to process.
-        // This is ideal for non-game applications that only update in response to user
-        // input, and uses significantly less power/CPU time than ControlFlow::Poll.
-        // _ => *control_flow = ControlFlow::Wait,
     });
 }
 

@@ -21,10 +21,7 @@ pub struct VkDevice {
 }
 
 impl VkDevice {
-    pub fn new(        
-        physical_device: &Arc<VkPhysicalDevice>,
-        surface: &VkSurface,
-    ) -> VkDevice {
+    pub fn new(physical_device: &Arc<VkPhysicalDevice>, surface: &VkSurface) -> VkDevice {
         let graphics_queue_family = find_queue_family(physical_device, |family| {
             family.flags.contains(vk::QueueFlags::GRAPHICS)
         });
@@ -54,11 +51,16 @@ impl VkDevice {
 
         let extensions = VkPhysicalDevice::get_required_device_extensions();
         let extension_names = utils::coerce_extension_names(&extensions);
+        let physical_device_features =
+            vk::PhysicalDeviceFeatures::builder().sampler_anisotropy(true);
         let device_create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_infos)
+            .enabled_features(&physical_device_features)
             .enabled_extension_names(&extension_names);
         let handle = unsafe {
-            physical_device.instance.handle
+            physical_device
+                .instance
+                .handle
                 .create_device(physical_device.handle, &device_create_info, None)
                 .expect("Unable to create logical device")
         };

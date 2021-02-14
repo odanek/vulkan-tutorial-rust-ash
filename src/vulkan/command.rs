@@ -44,19 +44,6 @@ impl VkCommandPool {
         }
     }
 
-    pub fn create_command_buffer(&self) -> vk::CommandBuffer {
-        self.create_command_buffers(1)[0]
-    }
-
-    pub fn clear_command_buffer(&self, buffer: vk::CommandBuffer) {
-        let buffers = [buffer];
-        unsafe {
-            self.device
-                .handle
-                .free_command_buffers(self.handle, &buffers)
-        };
-    }
-
     pub fn clear_command_buffers(&self, buffers: &Vec<vk::CommandBuffer>) {
         unsafe {
             self.device
@@ -65,10 +52,10 @@ impl VkCommandPool {
         };
     }
 
-    pub fn execute_one_time_commands<F: FnOnce(&VkDevice, vk::CommandBuffer)>(        
+    pub fn execute_one_time_commands(        
         &self,
         queue: vk::Queue,
-        executor: F,
+        executor: impl FnOnce(&VkDevice, vk::CommandBuffer),
     ) {
         let command_buffers = self.create_command_buffers(1);
         let command_buffer = command_buffers[0];
