@@ -1,6 +1,13 @@
 use std::time::Instant;
 
-use crate::{app::App, render::{Mat4, Vec3, Vertex}, vulkan::{VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkFence, VkImage, VkPipeline, VkSettings, VkShaderModule, VkSwapChain, VkSwapChainSync, VkTexture}};
+use crate::{
+    app::App,
+    render::{Mat4, Vec2, Vec3, Vertex},
+    vulkan::{
+        VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkImage,
+        VkPipeline, VkSettings, VkShaderModule, VkSwapChainSync, VkTexture,
+    },
+};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -8,18 +15,22 @@ const VERTICES: [Vertex; 4] = [
     Vertex {
         position: Vec3::new(-0.5, 0.5, 0.0),
         color: Vec3::new(1.0, 0.0, 0.0),
+        tex_coord: Vec2::new(0.0, 1.0),
     },
     Vertex {
         position: Vec3::new(0.5, 0.5, 0.0),
         color: Vec3::new(0.0, 1.0, 0.0),
+        tex_coord: Vec2::new(1.0, 1.0),
     },
     Vertex {
         position: Vec3::new(0.5, -0.5, 0.0),
         color: Vec3::new(0.0, 0.0, 1.0),
+        tex_coord: Vec2::new(1.0, 0.0),
     },
     Vertex {
         position: Vec3::new(-0.5, -0.5, 0.0),
         color: Vec3::new(1.0, 0.0, 1.0),
+        tex_coord: Vec2::new(0.0, 0.0),
     },
 ];
 
@@ -107,6 +118,7 @@ impl TutorialApp {
             &descriptor_pool,
             &self.descriptor_set_layout,
             &uniform_buffers,
+            &self.texture_image,
         );
 
         self.swap_chain_context = Some(TutorialAppSwapChainContext {
@@ -133,7 +145,15 @@ impl TutorialApp {
             .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(1)
             .stage_flags(vk::ShaderStageFlags::VERTEX);
-        VkDescriptorSetLayout::new(&context.device, &[ubo_layout_binding.build()])
+        let sampler_layout_binding = vk::DescriptorSetLayoutBinding::builder()
+            .binding(1)
+            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)  // TODO Use combined or separate?
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::FRAGMENT);
+        VkDescriptorSetLayout::new(
+            &context.device,
+            &[ubo_layout_binding.build(), sampler_layout_binding.build()],
+        )
     }
 
     fn create_pipeline(
@@ -212,10 +232,18 @@ impl TutorialApp {
     }
 
     fn create_descriptor_pool(context: &VkContext) -> VkDescriptorPool {
+        let count = context.swap_chain.image_count;
+        let ubo_pool_size = vk::DescriptorPoolSize::builder()
+            .ty(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(count);
+        let sampler_pool_size = vk::DescriptorPoolSize::builder()
+            .ty(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+            .descriptor_count(count);
+
         VkDescriptorPool::new(
             &context.device,
-            vk::DescriptorType::UNIFORM_BUFFER,
-            context.swap_chain.image_count,
+            &[ubo_pool_size.build(), sampler_pool_size.build()],
+            count,
         )
     }
 
@@ -224,6 +252,7 @@ impl TutorialApp {
         pool: &VkDescriptorPool,
         layout: &VkDescriptorSetLayout,
         uniform_buffers: &[VkBuffer],
+        texture: &VkTexture,
     ) -> Vec<vk::DescriptorSet> {
         let count = uniform_buffers.len();
         log::info!("Creating {} descriptor sets", count);
@@ -259,7 +288,22 @@ impl TutorialApp {
                     .buffer_info(&buffer_infos)
                     .build();
 
-                let descriptor_writes = [ubo_descriptor_write];
+                let image_info = vk::DescriptorImageInfo::builder()
+                    .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                    .image_view(texture.image_view)
+                    .sampler(texture.sampler)
+                    .build();
+                let image_infos = [image_info];
+
+                let image_descriptor_write = vk::WriteDescriptorSet::builder()
+                    .dst_set(*set)
+                    .dst_binding(1)
+                    .dst_array_element(0)
+                    .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                    .image_info(&image_infos)
+                    .build();
+
+                let descriptor_writes = [ubo_descriptor_write, image_descriptor_write];
 
                 unsafe {
                     device
@@ -271,7 +315,7 @@ impl TutorialApp {
         descriptor_sets
     }
 
-    fn create_texture_image(context: &VkContext) -> VkTexture {        
+    fn create_texture_image(context: &VkContext) -> VkTexture {
         VkImage::load_texture(
             &context.device,
             &context.command_pool,
@@ -406,7 +450,7 @@ impl App for TutorialApp {
 
     fn minimized(&mut self, _window: &Window) {}
 
-    fn draw_frame(&mut self, window: &Window) {        
+    fn draw_frame(&mut self, window: &Window) {
         let image_index = match self.acquire_image(window) {
             Some(index) => index,
             None => return,

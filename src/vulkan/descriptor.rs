@@ -45,12 +45,7 @@ pub struct VkDescriptorPool {
 }
 
 impl VkDescriptorPool {
-    pub fn new(device: &Arc<VkDevice>, ty: vk::DescriptorType, count: u32) -> VkDescriptorPool {
-        let pool_size = vk::DescriptorPoolSize::builder()
-            .ty(ty)
-            .descriptor_count(count);
-        let pool_sizes = [pool_size.build()];
-
+    pub fn new(device: &Arc<VkDevice>, pool_sizes: &[vk::DescriptorPoolSize], count: u32) -> VkDescriptorPool {
         let create_info = vk::DescriptorPoolCreateInfo::builder()
             .pool_sizes(&pool_sizes)
             .max_sets(count);

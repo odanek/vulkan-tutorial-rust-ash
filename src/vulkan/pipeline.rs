@@ -37,7 +37,8 @@ impl VkPipeline {
         let binding_descriptions = [vertex_input_binding];
         let position_vertex_attribute = create_position_vertex_input_attribute_description();
         let color_vertex_attribute = create_color_vertex_input_attribute_description();
-        let attribute_descriptions = [position_vertex_attribute, color_vertex_attribute];
+        let texture_vertex_attribute = create_texture_vertex_input_attribute_description();
+        let attribute_descriptions = [position_vertex_attribute, color_vertex_attribute, texture_vertex_attribute];
         let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::builder()
             .vertex_binding_descriptions(&binding_descriptions)
             .vertex_attribute_descriptions(&attribute_descriptions);
@@ -173,5 +174,14 @@ fn create_color_vertex_input_attribute_description() -> vk::VertexInputAttribute
         .location(1)
         .format(vk::Format::R32G32B32_SFLOAT)
         .offset(offset_of!(Vertex, color) as u32)
+        .build()
+}
+
+fn create_texture_vertex_input_attribute_description() -> vk::VertexInputAttributeDescription {
+    vk::VertexInputAttributeDescription::builder()
+        .binding(0)
+        .location(2)
+        .format(vk::Format::R32G32_SFLOAT)
+        .offset(offset_of!(Vertex, tex_coord) as u32)
         .build()
 }
