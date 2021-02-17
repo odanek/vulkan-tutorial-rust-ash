@@ -11,7 +11,7 @@ use crate::{
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
-const VERTICES: [Vertex; 4] = [
+const VERTICES: [Vertex; 8] = [
     Vertex {
         position: Vec3::new(-0.5, 0.5, 0.0),
         color: Vec3::new(1.0, 0.0, 0.0),
@@ -32,9 +32,29 @@ const VERTICES: [Vertex; 4] = [
         color: Vec3::new(1.0, 0.0, 1.0),
         tex_coord: Vec2::new(0.0, 0.0),
     },
+    Vertex {
+        position: Vec3::new(-0.5, 0.5, -1.0),
+        color: Vec3::new(1.0, 0.0, 0.0),
+        tex_coord: Vec2::new(0.0, 1.0),
+    },
+    Vertex {
+        position: Vec3::new(0.5, 0.5, -1.0),
+        color: Vec3::new(0.0, 1.0, 0.0),
+        tex_coord: Vec2::new(1.0, 1.0),
+    },
+    Vertex {
+        position: Vec3::new(0.5, -0.5, -1.0),
+        color: Vec3::new(0.0, 0.0, 1.0),
+        tex_coord: Vec2::new(1.0, 0.0),
+    },
+    Vertex {
+        position: Vec3::new(-0.5, -0.5, -1.0),
+        color: Vec3::new(1.0, 0.0, 1.0),
+        tex_coord: Vec2::new(0.0, 0.0),
+    },    
 ];
 
-const INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
+const INDICES: [u16; 12] = [0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4];
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -221,7 +241,7 @@ impl TutorialApp {
         let ubo = UniformBufferObject {
             model: Mat4::rotate_z(elapsed_time),
             view: Mat4::look_at(
-                &Vec3::new(0.0, 0.0, 5.0),
+                &Vec3::new(1.0, 1.0, 3.0),
                 &Vec3::new(0.0, 0.0, 0.0),
                 &Vec3::new(0.0, 1.0, 0.0),
             ),
