@@ -1,13 +1,6 @@
 use std::time::Instant;
 
-use crate::{
-    app::App,
-    render::{Mat4, Vec2, Vec3, Vertex},
-    vulkan::{
-        VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkImage,
-        VkPipeline, VkSettings, VkShaderModule, VkSwapChainSync, VkTexture,
-    },
-};
+use crate::{app::App, render::{Mat4, Vec2, Vec3, Vertex}, vulkan::{VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkImage, VkPipeline, VkSampler, VkSettings, VkShaderModule, VkSwapChainSync, VkTexture}};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -74,6 +67,7 @@ pub struct TutorialAppSwapChainContext {
 pub struct TutorialApp {
     start_time: Instant,
     swap_chain_context: Option<TutorialAppSwapChainContext>,
+    sampler: VkSampler,
     texture_image: VkTexture,
     index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
@@ -105,10 +99,12 @@ impl TutorialApp {
         let vertex_buffer = Self::create_vertex_buffer(&vk_context);
         let index_buffer = Self::create_index_buffer(&vk_context);
         let texture_image = Self::create_texture_image(&vk_context);
-
+        let sampler = Self::create_sampler(&vk_context, &texture_image);
+        
         let mut app = TutorialApp {
             start_time: Instant::now(),
             swap_chain_context: None,
+            sampler,
             texture_image,
             index_buffer,
             vertex_buffer,
@@ -139,6 +135,7 @@ impl TutorialApp {
             &self.descriptor_set_layout,
             &uniform_buffers,
             &self.texture_image,
+            &self.sampler
         );
 
         self.swap_chain_context = Some(TutorialAppSwapChainContext {
@@ -273,6 +270,7 @@ impl TutorialApp {
         layout: &VkDescriptorSetLayout,
         uniform_buffers: &[VkBuffer],
         texture: &VkTexture,
+        sampler: &VkSampler
     ) -> Vec<vk::DescriptorSet> {
         let count = uniform_buffers.len();
         log::info!("Creating {} descriptor sets", count);
@@ -311,7 +309,7 @@ impl TutorialApp {
                 let image_info = vk::DescriptorImageInfo::builder()
                     .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
                     .image_view(texture.image_view)
-                    .sampler(texture.sampler)
+                    .sampler(sampler.handle)
                     .build();
                 let image_infos = [image_info];
 
@@ -342,6 +340,11 @@ impl TutorialApp {
             context.device.graphics_queue, // TODO: Use transfer queue
             "assets/texture.jpg",
         )
+    }
+
+    fn create_sampler(context: &VkContext, texture: &VkTexture) -> VkSampler {
+        let physical_device_properties = context.physical_device.get_device_properties();
+        VkSampler::new(&context.device, texture.max_mip_levels, physical_device_properties.limits.max_sampler_anisotropy)
     }
 
     fn record_commands(&self) {

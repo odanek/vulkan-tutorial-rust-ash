@@ -20,8 +20,13 @@ pub struct VkImage {
 pub struct VkTexture {
     device: Arc<VkDevice>,
     pub image: VkImage,
+    pub max_mip_levels: u32,
     pub image_view: vk::ImageView,
-    pub sampler: vk::Sampler,
+}
+
+pub struct VkSampler {
+    device: Arc<VkDevice>,
+    pub handle: vk::Sampler,
 }
 
 impl VkImage {
@@ -151,16 +156,57 @@ impl VkImage {
             max_mip_levels,
             vk::Format::R8G8B8A8_UNORM,
             vk::ImageAspectFlags::COLOR,
-        );
-
-        let physical_device_properties = device.physical_device.get_device_properties();
-        let sampler = create_sampler(device, max_mip_levels as _, physical_device_properties.limits.max_sampler_anisotropy);
+        );        
 
         VkTexture {
             device: Arc::clone(device),
             image,
             image_view,
-            sampler,
+            max_mip_levels,
+        }
+    }
+
+    pub fn create_depth_image(
+        device: &Arc<VkDevice>,
+        command_pool: &VkCommandPool,
+        transfer_queue: vk::Queue,
+        format: vk::Format,
+        extent: vk::Extent2D,
+        msaa_samples: vk::SampleCountFlags,
+    ) -> VkTexture {
+        let image = VkImage::new(
+            device,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            vk::Extent3D {
+                width: extent.width,
+                height: extent.height,
+                depth: 1
+            },
+            1,
+            msaa_samples,
+            format,
+            vk::ImageTiling::OPTIMAL,
+            vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+        );
+
+        // TODO Probably not necessary
+        transition_image_layout(
+            command_pool,
+            transfer_queue,
+            &image,
+            1,
+            format,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        );
+
+        let image_view = Self::create_image_view(device, image.handle, 1, format, vk::ImageAspectFlags::DEPTH);
+        
+        VkTexture {
+            device: Arc::clone(device),
+            image,
+            image_view,
+            max_mip_levels: 1,
         }
     }
 
@@ -211,9 +257,45 @@ impl Drop for VkImage {
 impl Drop for VkTexture {
     fn drop(&mut self) {
         log::debug!("Dropping texture");
-        unsafe {
-            self.device.handle.destroy_sampler(self.sampler, None);
+        unsafe {            
             self.device.handle.destroy_image_view(self.image_view, None);
+        }
+    }
+}
+
+impl VkSampler {
+    pub fn new(device: &Arc<VkDevice>, max_mip_levels: u32, max_anisotropy: f32) -> VkSampler {
+        let sampler_info = vk::SamplerCreateInfo::builder()
+            .mag_filter(vk::Filter::LINEAR)
+            .min_filter(vk::Filter::LINEAR)
+            .address_mode_u(vk::SamplerAddressMode::REPEAT)
+            .address_mode_v(vk::SamplerAddressMode::REPEAT)
+            .address_mode_w(vk::SamplerAddressMode::REPEAT)
+            .anisotropy_enable(true)
+            .max_anisotropy(max_anisotropy) 
+            .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
+            .unnormalized_coordinates(false)
+            .compare_enable(false)
+            .compare_op(vk::CompareOp::ALWAYS)
+            .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
+            .mip_lod_bias(0.0)
+            .min_lod(0.0)
+            .max_lod(max_mip_levels as _);
+    
+        let handle = unsafe { device.handle.create_sampler(&sampler_info, None).unwrap() };
+
+        VkSampler {
+            device: Arc::clone(device),
+            handle
+        }
+    }   
+}
+
+impl Drop for VkSampler {
+    fn drop(&mut self) {
+        log::debug!("Dropping sampler");
+        unsafe {
+            self.device.handle.destroy_sampler(self.handle, None);
         }
     }
 }
@@ -527,25 +609,4 @@ fn create_image_view(device: &VkDevice, image: vk::Image, format: vk::Format) ->
             .create_image_view(&create_info, None)
             .expect("Unable to create image view")
     }
-}
-
-fn create_sampler(device: &VkDevice, max_mip_levels: f32, max_anisotropy: f32) -> vk::Sampler {
-    let sampler_info = vk::SamplerCreateInfo::builder()
-        .mag_filter(vk::Filter::LINEAR)
-        .min_filter(vk::Filter::LINEAR)
-        .address_mode_u(vk::SamplerAddressMode::REPEAT)
-        .address_mode_v(vk::SamplerAddressMode::REPEAT)
-        .address_mode_w(vk::SamplerAddressMode::REPEAT)
-        .anisotropy_enable(true)
-        .max_anisotropy(max_anisotropy) 
-        .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
-        .unnormalized_coordinates(false)
-        .compare_enable(false)
-        .compare_op(vk::CompareOp::ALWAYS)
-        .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
-        .mip_lod_bias(0.0)
-        .min_lod(0.0)
-        .max_lod(max_mip_levels);
-
-    unsafe { device.handle.create_sampler(&sampler_info, None).unwrap() }
 }

@@ -20,7 +20,7 @@ mod swap_chain_sync;
 mod utils;
 mod version;
 
-pub use self::image::{VkImage, VkTexture};
+pub use self::image::{VkImage, VkTexture, VkSampler};
 pub use buffer::VkBuffer;
 pub use command::VkCommandPool;
 pub use context::VkContext;
