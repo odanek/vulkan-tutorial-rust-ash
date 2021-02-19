@@ -8,7 +8,7 @@ use std::{
 
 use ash::{version::DeviceV1_0, vk};
 
-use super::{VkBuffer, VkCommandPool, VkDevice};
+use super::{VkBuffer, VkCommandPool, VkDevice, VkPhysicalDevice};
 
 pub struct VkImage {
     device: Arc<VkDevice>,
@@ -156,7 +156,7 @@ impl VkImage {
             max_mip_levels,
             vk::Format::R8G8B8A8_UNORM,
             vk::ImageAspectFlags::COLOR,
-        );        
+        );
 
         VkTexture {
             device: Arc::clone(device),
@@ -180,7 +180,7 @@ impl VkImage {
             vk::Extent3D {
                 width: extent.width,
                 height: extent.height,
-                depth: 1
+                depth: 1,
             },
             1,
             msaa_samples,
@@ -200,8 +200,9 @@ impl VkImage {
             vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         );
 
-        let image_view = Self::create_image_view(device, image.handle, 1, format, vk::ImageAspectFlags::DEPTH);
-        
+        let image_view =
+            Self::create_image_view(device, image.handle, 1, format, vk::ImageAspectFlags::DEPTH);
+
         VkTexture {
             device: Arc::clone(device),
             image,
@@ -242,6 +243,40 @@ impl VkImage {
                 .expect("Unable to create image view")
         }
     }
+
+    fn find_depth_format(physical_device: &VkPhysicalDevice) -> vk::Format {
+        let candidates = vec![
+            vk::Format::D32_SFLOAT,
+            vk::Format::D32_SFLOAT_S8_UINT,
+            vk::Format::D24_UNORM_S8_UINT,
+        ];
+
+        Self::find_supported_format(
+            physical_device,
+            &candidates,
+            vk::ImageTiling::OPTIMAL,
+            vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+        )
+        .expect("Failed to find a supported depth format")
+    }
+
+    pub fn find_supported_format(
+        physical_device: &VkPhysicalDevice,
+        candidates: &[vk::Format],
+        tiling: vk::ImageTiling,
+        features: vk::FormatFeatureFlags,
+    ) -> Option<vk::Format> {
+        candidates.iter().cloned().find(|candidate| {
+            let props = physical_device.get_format_properties(*candidate);
+            (tiling == vk::ImageTiling::LINEAR && props.linear_tiling_features.contains(features))
+                || (tiling == vk::ImageTiling::OPTIMAL
+                    && props.optimal_tiling_features.contains(features))
+        })
+    }
+
+    fn has_stencil_component(format: vk::Format) -> bool {
+        format == vk::Format::D32_SFLOAT_S8_UINT || format == vk::Format::D24_UNORM_S8_UINT
+    }
 }
 
 impl Drop for VkImage {
@@ -257,7 +292,7 @@ impl Drop for VkImage {
 impl Drop for VkTexture {
     fn drop(&mut self) {
         log::debug!("Dropping texture");
-        unsafe {            
+        unsafe {
             self.device.handle.destroy_image_view(self.image_view, None);
         }
     }
@@ -272,7 +307,7 @@ impl VkSampler {
             .address_mode_v(vk::SamplerAddressMode::REPEAT)
             .address_mode_w(vk::SamplerAddressMode::REPEAT)
             .anisotropy_enable(true)
-            .max_anisotropy(max_anisotropy) 
+            .max_anisotropy(max_anisotropy)
             .border_color(vk::BorderColor::INT_OPAQUE_BLACK)
             .unnormalized_coordinates(false)
             .compare_enable(false)
@@ -281,14 +316,14 @@ impl VkSampler {
             .mip_lod_bias(0.0)
             .min_lod(0.0)
             .max_lod(max_mip_levels as _);
-    
+
         let handle = unsafe { device.handle.create_sampler(&sampler_info, None).unwrap() };
 
         VkSampler {
             device: Arc::clone(device),
-            handle
+            handle,
         }
-    }   
+    }
 }
 
 impl Drop for VkSampler {
