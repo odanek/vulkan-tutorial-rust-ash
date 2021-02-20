@@ -346,6 +346,7 @@ fn transition_image_layout(
 ) {
     command_pool.execute_one_time_commands(transition_queue, |device, buffer| {
         let (src_access_mask, dst_access_mask, src_stage, dst_stage) =
+        // TODO Don't use pairs, do element wise
             match (old_layout, new_layout) {
                 (vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL) => (
                     vk::AccessFlags::empty(),
