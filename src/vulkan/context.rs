@@ -2,15 +2,20 @@ use std::sync::Arc;
 
 use winit::{dpi::PhysicalSize, window::Window};
 
-use ash::{Entry, vk};
+use ash::{vk, Entry};
 
-use super::{command::VkCommandPool, debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice, render_pass::VkRenderPass, settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain, swap_chain_sync::VkSwapChainSync};
+use super::{
+    command::VkCommandPool, debug::VkValidation, device::VkDevice, image::VkImage,
+    instance::VkInstance, physical_device::VkPhysicalDevice, render_pass::VkRenderPass,
+    settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain, VkTexture,
+};
 
 pub struct VkContext {
+    pub depth_texture: VkTexture,
     pub command_buffers: Vec<vk::CommandBuffer>,
     pub command_pool: VkCommandPool,
     pub render_pass: VkRenderPass,
-    pub swap_chain: VkSwapChain,    
+    pub swap_chain: VkSwapChain,
     pub device: Arc<VkDevice>,
     pub physical_device: Arc<VkPhysicalDevice>,
     pub surface: VkSurface,
@@ -33,22 +38,33 @@ impl VkContext {
         let device = Arc::new(VkDevice::new(&physical_device, &surface));
 
         let window_size = window.inner_size();
-        let mut swap_chain = VkSwapChain::new(
-            &device,
-            &surface,
-            &[window_size.width, window_size.height],
-        );
-
-        let render_pass = VkRenderPass::new(&device, &swap_chain);
-
-        swap_chain.create_frame_buffers(&device, &render_pass);
 
         log::info!("Creating swap-chain command pool");
         let command_pool = VkCommandPool::new(&device, device.graphics_queue_family);
-        log::info!("Creating swap-chain command buffers");
-        let command_buffers = command_pool.create_command_buffers(swap_chain.image_count);        
 
-        VkContext {
+        let mut swap_chain =
+            VkSwapChain::new(&device, &surface, &[window_size.width, window_size.height]);
+
+        let depth_format = VkImage::find_depth_format(&physical_device);
+        
+        log::info!("Creating depth image with format {:?}", depth_format);
+        let depth_texture = VkImage::create_depth_image(
+            &device,
+            &command_pool,
+            device.graphics_queue,
+            depth_format,
+            swap_chain.extent,
+            vk::SampleCountFlags::TYPE_1,
+        );
+        
+        let render_pass = VkRenderPass::new(&device, &swap_chain, depth_format);
+        swap_chain.create_frame_buffers(&render_pass, &depth_texture);        
+
+        log::info!("Creating swap-chain command buffers");
+        let command_buffers = command_pool.create_command_buffers(swap_chain.image_count);
+
+        VkContext {            
+            depth_texture,
             command_buffers,
             command_pool,
             render_pass,
@@ -63,22 +79,32 @@ impl VkContext {
     }
 
     pub fn cleanup_swap_chain(&mut self) {
-        self.swap_chain.cleanup_framebuffers(&self.device);        
+        self.command_pool.clear_command_buffers(&self.command_buffers);
+        self.swap_chain.cleanup_framebuffers(&self.device);
         self.render_pass.cleanup(&self.device);
         self.swap_chain.cleanup(&self.device);
     }
 
+    // TODO Move to separate structure and use Drop insted of cleanup
     pub fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
-        self.swap_chain = VkSwapChain::new(
+        self.swap_chain = VkSwapChain::new(&self.device, &self.surface, &[size.width, size.height]);
+
+        let depth_format = VkImage::find_depth_format(&self.physical_device);
+        self.depth_texture = VkImage::create_depth_image(
             &self.device,
-            &self.surface,
-            &[size.width, size.height],
+            &self.command_pool,
+            self.device.graphics_queue,
+            depth_format,
+            self.swap_chain.extent,
+            vk::SampleCountFlags::TYPE_1,
         );
 
-        self.render_pass = VkRenderPass::new(&self.device, &self.swap_chain);        
+        self.render_pass = VkRenderPass::new(&self.device, &self.swap_chain, depth_format);
         self.swap_chain
-            .create_frame_buffers(&self.device, &self.render_pass);
-        self.command_buffers = self.command_pool
+            .create_frame_buffers(&self.render_pass, &self.depth_texture);
+
+        self.command_buffers = self
+            .command_pool
             .create_command_buffers(self.swap_chain.image_count);
     }
 }

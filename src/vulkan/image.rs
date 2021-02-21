@@ -2,7 +2,6 @@ use std::{
     fs::File,
     io::{Cursor, Read},
     mem::size_of,
-    path::Path,
     sync::Arc,
 };
 
@@ -22,6 +21,7 @@ pub struct VkTexture {
     pub image: VkImage,
     pub max_mip_levels: u32,
     pub image_view: vk::ImageView,
+    pub format: vk::Format
 }
 
 pub struct VkSampler {
@@ -108,13 +108,14 @@ impl VkImage {
         );
         staging_buffer.map_memory(&pixels);
 
+        let format = vk::Format::R8G8B8A8_UNORM;
         let image = Self::new(
             device,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
             extent,
             max_mip_levels,
             vk::SampleCountFlags::TYPE_1,
-            vk::Format::R8G8B8A8_UNORM,
+            format,
             vk::ImageTiling::OPTIMAL,
             vk::ImageUsageFlags::TRANSFER_SRC
                 | vk::ImageUsageFlags::TRANSFER_DST
@@ -126,7 +127,7 @@ impl VkImage {
             transfer_queue,
             &image,
             max_mip_levels,
-            vk::Format::R8G8B8A8_UNORM,
+            format,
             vk::ImageLayout::UNDEFINED,
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         );
@@ -146,15 +147,13 @@ impl VkImage {
             transfer_queue,
             &image,
             extent,
-            vk::Format::R8G8B8A8_UNORM,
+            format,
             max_mip_levels,
         );
 
-        let image_view = Self::create_image_view(
-            device,
-            image.handle,
+        let image_view = image.create_view(
             max_mip_levels,
-            vk::Format::R8G8B8A8_UNORM,
+            format,
             vk::ImageAspectFlags::COLOR,
         );
 
@@ -163,6 +162,7 @@ impl VkImage {
             image,
             image_view,
             max_mip_levels,
+            format
         }
     }
 
@@ -201,14 +201,24 @@ impl VkImage {
         );
 
         let image_view =
-            Self::create_image_view(device, image.handle, 1, format, vk::ImageAspectFlags::DEPTH);
+            image.create_view(1, format, vk::ImageAspectFlags::DEPTH);
 
         VkTexture {
             device: Arc::clone(device),
             image,
             image_view,
             max_mip_levels: 1,
+            format
         }
+    }
+
+    pub fn create_view(
+        &self,
+        mip_levels: u32,
+        format: vk::Format,
+        aspect_mask: vk::ImageAspectFlags,
+    ) -> vk::ImageView {
+        Self::create_image_view(&self.device, self.handle, mip_levels, format, aspect_mask)
     }
 
     pub fn create_image_view(
@@ -244,7 +254,7 @@ impl VkImage {
         }
     }
 
-    fn find_depth_format(physical_device: &VkPhysicalDevice) -> vk::Format {
+    pub fn find_depth_format(physical_device: &VkPhysicalDevice) -> vk::Format {
         let candidates = vec![
             vk::Format::D32_SFLOAT,
             vk::Format::D32_SFLOAT_S8_UINT,
@@ -274,7 +284,7 @@ impl VkImage {
         })
     }
 
-    fn has_stencil_component(format: vk::Format) -> bool {
+    pub fn has_stencil_component(format: vk::Format) -> bool {
         format == vk::Format::D32_SFLOAT_S8_UINT || format == vk::Format::D24_UNORM_S8_UINT
     }
 }
@@ -345,45 +355,38 @@ fn transition_image_layout(
     new_layout: vk::ImageLayout,
 ) {
     command_pool.execute_one_time_commands(transition_queue, |device, buffer| {
-        let (src_access_mask, dst_access_mask, src_stage, dst_stage) =
-        // TODO Don't use pairs, do element wise
-            match (old_layout, new_layout) {
-                (vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL) => (
-                    vk::AccessFlags::empty(),
-                    vk::AccessFlags::TRANSFER_WRITE,
-                    vk::PipelineStageFlags::TOP_OF_PIPE,
-                    vk::PipelineStageFlags::TRANSFER,
-                ),
-                (
-                    vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-                    vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                ) => (
-                    vk::AccessFlags::TRANSFER_WRITE,
-                    vk::AccessFlags::SHADER_READ,
-                    vk::PipelineStageFlags::TRANSFER,
-                    vk::PipelineStageFlags::FRAGMENT_SHADER,
-                ),
-                (vk::ImageLayout::UNDEFINED, vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL) => {
-                    (
-                        vk::AccessFlags::empty(),
-                        vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-                        vk::PipelineStageFlags::TOP_OF_PIPE,
-                        vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
-                    )
-                }
-                (vk::ImageLayout::UNDEFINED, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL) => (
-                    vk::AccessFlags::empty(),
-                    vk::AccessFlags::COLOR_ATTACHMENT_READ
-                        | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-                    vk::PipelineStageFlags::TOP_OF_PIPE,
-                    vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-                ),
-                _ => panic!(
-                    "Unsupported layout transition({:?} => {:?}).",
-                    old_layout, new_layout
-                ),
-            };
+        let (src_access_mask, src_stage) = match (old_layout) {
+            vk::ImageLayout::UNDEFINED => (
+                vk::AccessFlags::empty(),
+                vk::PipelineStageFlags::TOP_OF_PIPE,
+            ),
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL => (
+                vk::AccessFlags::TRANSFER_WRITE,
+                vk::PipelineStageFlags::TRANSFER,
+            ),
+            _ => panic!("Unsupported layout transition from ({:?}.", old_layout),
+        };
+
+        let (dst_access_mask, dst_stage) = match (new_layout) {
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL => (
+                vk::AccessFlags::TRANSFER_WRITE,
+                vk::PipelineStageFlags::TRANSFER,
+            ),
+            vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL => (
+                vk::AccessFlags::SHADER_READ,
+                vk::PipelineStageFlags::FRAGMENT_SHADER,
+            ),
+            vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL => (
+                vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                    | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            ),
+            vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL => (
+                vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+                vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            ),
+            _ => panic!("Unsupported layout transition to {:?}).", new_layout),
+        };
 
         let aspect_mask = if new_layout == vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL {
             let mut mask = vk::ImageAspectFlags::DEPTH;

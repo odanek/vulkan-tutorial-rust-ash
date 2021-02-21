@@ -7,13 +7,13 @@ use ash::{
     vk::{self, SwapchainKHR},
 };
 
-use super::{VkImage, device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
+use super::{VkImage, VkTexture, device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
 
 pub struct VkSwapChain {
-    pub device: Arc<VkDevice>,
+    device: Arc<VkDevice>,
     pub format: vk::SurfaceFormatKHR,
     pub present_mode: vk::PresentModeKHR,
-    pub swap_extent: vk::Extent2D,
+    pub extent: vk::Extent2D,
     pub image_count: u32,
     pub extension: Swapchain,
     pub handle: SwapchainKHR,
@@ -23,20 +23,17 @@ pub struct VkSwapChain {
 }
 
 impl VkSwapChain {
-    pub fn new(
-        device: &Arc<VkDevice>,
-        surface: &VkSurface,
-        dimensions: &[u32; 2],
-    ) -> VkSwapChain {
-        let surface_caps = surface.get_physical_device_surface_capabilities(&device.physical_device);
+    pub fn new(device: &Arc<VkDevice>, surface: &VkSurface, dimensions: &[u32; 2]) -> VkSwapChain {
+        let surface_caps =
+            surface.get_physical_device_surface_capabilities(&device.physical_device);
         let format = choose_swapchain_surface_format(&surface_caps.formats);
         log::info!("Choosing swap-chain image format: {:?}", format);
         let present_mode = choose_swapchain_surface_present_mode(&surface_caps.present_modes);
         log::info!("Choosing swap-chain presentation mode: {:?}", present_mode);
-        let swap_extent = choose_swapchain_extent(surface_caps.capabilities, dimensions);
+        let extent = choose_swapchain_extent(surface_caps.capabilities, dimensions);
         log::info!(
             "Choosing swap-chain swap extent: {:?} for window size: {:?}",
-            swap_extent,
+            extent,
             dimensions
         );
         let image_count = choose_image_count(&surface_caps.capabilities);
@@ -47,7 +44,7 @@ impl VkSwapChain {
             .min_image_count(image_count)
             .image_format(format.format)
             .image_color_space(format.color_space)
-            .image_extent(swap_extent)
+            .image_extent(extent)
             .image_array_layers(1)
             .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
             .pre_transform(surface_caps.capabilities.current_transform)
@@ -86,7 +83,7 @@ impl VkSwapChain {
             device: Arc::clone(device),
             format,
             present_mode,
-            swap_extent,
+            extent,
             image_count,
             extension,
             handle,
@@ -96,23 +93,23 @@ impl VkSwapChain {
         }
     }
 
-    pub fn create_frame_buffers(&mut self, device: &VkDevice, render_pass: &VkRenderPass) {
+    pub fn create_frame_buffers(&mut self, render_pass: &VkRenderPass, depth_texture: &VkTexture) {
         log::info!("Creating framebuffers");
 
         self.framebuffers = self
             .image_views
             .iter()
-            .map(|view| [*view])
+            .map(|view| [*view, depth_texture.image_view])
             .map(|attachments| {
                 let framebuffer_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(render_pass.handle)
                     .attachments(&attachments)
-                    .width(self.swap_extent.width)
-                    .height(self.swap_extent.height)
+                    .width(self.extent.width)
+                    .height(self.extent.height)
                     .layers(1)
                     .build();
                 unsafe {
-                    device
+                    self.device
                         .handle
                         .create_framebuffer(&framebuffer_info, None)
                         .expect("Unable to create framebuffer")

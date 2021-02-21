@@ -38,7 +38,11 @@ impl VkPipeline {
         let position_vertex_attribute = create_position_vertex_input_attribute_description();
         let color_vertex_attribute = create_color_vertex_input_attribute_description();
         let texture_vertex_attribute = create_texture_vertex_input_attribute_description();
-        let attribute_descriptions = [position_vertex_attribute, color_vertex_attribute, texture_vertex_attribute];
+        let attribute_descriptions = [
+            position_vertex_attribute,
+            color_vertex_attribute,
+            texture_vertex_attribute,
+        ];
         let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::builder()
             .vertex_binding_descriptions(&binding_descriptions)
             .vertex_attribute_descriptions(&attribute_descriptions);
@@ -50,14 +54,14 @@ impl VkPipeline {
         let viewports = [vk::Viewport {
             x: 0.0,
             y: 0.0,
-            width: swap_chain.swap_extent.width as f32,
-            height: swap_chain.swap_extent.height as f32,
+            width: swap_chain.extent.width as f32,
+            height: swap_chain.extent.height as f32,
             min_depth: 0.0,
             max_depth: 1.0,
         }];
         let scissors = [vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
-            extent: swap_chain.swap_extent,
+            extent: swap_chain.extent,
         }];
         let viewport_info = vk::PipelineViewportStateCreateInfo::builder()
             .viewports(&viewports)
@@ -74,6 +78,17 @@ impl VkPipeline {
             .depth_bias_constant_factor(0.0)
             .depth_bias_clamp(0.0)
             .depth_bias_slope_factor(0.0);
+
+        let depth_stencil_info = vk::PipelineDepthStencilStateCreateInfo::builder()
+            .depth_test_enable(true)
+            .depth_write_enable(true)
+            .depth_compare_op(vk::CompareOp::LESS)
+            .depth_bounds_test_enable(false)
+            .min_depth_bounds(0.0)
+            .max_depth_bounds(1.0)
+            .stencil_test_enable(false)
+            .front(vk::StencilOpState::default())
+            .back(vk::StencilOpState::default());
 
         let multisampling_info = vk::PipelineMultisampleStateCreateInfo::builder()
             .sample_shading_enable(false)
@@ -116,8 +131,9 @@ impl VkPipeline {
             .input_assembly_state(&input_assembly)
             .viewport_state(&viewport_info)
             .rasterization_state(&rasterizer_info)
+            .depth_stencil_state(&depth_stencil_info)
             .multisample_state(&multisampling_info)
-            .color_blend_state(&color_blending_info)
+            .color_blend_state(&color_blending_info)            
             .layout(layout)
             .render_pass(render_pass.handle)
             .subpass(0)

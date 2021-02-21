@@ -471,3 +471,153 @@ impl Vec4 {
         self.data[3]
     }
 }
+
+impl ops::Add<Vec4> for Vec4 {
+    type Output = Vec4;
+
+    fn add(self, rhs: Vec4) -> Self::Output {
+        &self + &rhs
+    }
+}
+
+impl ops::Add<Vec4> for &Vec4 {
+    type Output = Vec4;
+
+    fn add(self, rhs: Vec4) -> Self::Output {
+        self + &rhs
+    }
+}
+
+impl ops::Add<&Vec4> for Vec4 {
+    type Output = Vec4;
+
+    fn add(self, rhs: &Vec4) -> Self::Output {
+        &self + rhs
+    }
+}
+
+impl ops::Add<&Vec4> for &Vec4 {
+    type Output = Vec4;
+
+    fn add(self, rhs: &Vec4) -> Self::Output {
+        Vec4 {
+            data: [
+                self.data[0] + rhs.data[0],
+                self.data[1] + rhs.data[1],
+                self.data[2] + rhs.data[2],
+                self.data[3] + rhs.data[3],
+            ],
+        }
+    }
+}
+
+impl ops::Sub<Vec4> for Vec4 {
+    type Output = Vec4;
+
+    fn sub(self, rhs: Vec4) -> Self::Output {
+        &self - &rhs
+    }
+}
+
+impl ops::Sub<Vec4> for &Vec4 {
+    type Output = Vec4;
+
+    fn sub(self, rhs: Vec4) -> Self::Output {
+        self - &rhs
+    }
+}
+
+impl ops::Sub<&Vec4> for Vec4 {
+    type Output = Vec4;
+
+    fn sub(self, rhs: &Vec4) -> Self::Output {
+        &self - rhs
+    }
+}
+
+impl ops::Sub<&Vec4> for &Vec4 {
+    type Output = Vec4;
+
+    fn sub(self, rhs: &Vec4) -> Self::Output {
+        Vec4 {
+            data: [
+                self.data[0] - rhs.data[0],
+                self.data[1] - rhs.data[1],
+                self.data[2] - rhs.data[2],
+                self.data[3] - rhs.data[3],
+            ],
+        }
+    }
+}
+
+impl ops::Mul<f32> for Vec4 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        &self * rhs
+    }
+}
+
+impl ops::Mul<f32> for &Vec4 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Vec4 {
+            data: [self.data[0] * rhs, self.data[1] * rhs, self.data[2] * rhs, self.data[3] * rhs],
+        }
+    }
+}
+
+impl ops::Mul<Vec4> for f32 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: Vec4) -> Self::Output {
+        self * &rhs
+    }
+}
+
+impl ops::Mul<&Vec4> for f32 {
+    type Output = Vec4;
+
+    fn mul(self, rhs: &Vec4) -> Self::Output {
+        Vec4 {
+            data: [self * rhs.data[0], self * rhs.data[1], self * rhs.data[2], self * rhs.data[3]],
+        }
+    }
+}
+
+impl ops::Div<f32> for Vec4 {
+    type Output = Vec4;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        &self / rhs
+    }
+}
+
+impl ops::Div<f32> for &Vec4 {
+    type Output = Vec4;
+
+    fn div(self, rhs: f32) -> Self::Output {
+        Vec4 {
+            data: [self.data[0] / rhs, self.data[1] / rhs, self.data[2] / rhs, self.data[3] / rhs],
+        }
+    }
+}
+
+impl ops::Neg for Vec4 {
+    type Output = Vec4;
+
+    fn neg(self) -> Self::Output {
+        -(&self)
+    }
+}
+
+impl ops::Neg for &Vec4 {
+    type Output = Vec4;
+
+    fn neg(self) -> Self::Output {
+        Vec4 {
+            data: [-self.data[0], -self.data[1], -self.data[2], -self.data[3]],
+        }
+    }
+}

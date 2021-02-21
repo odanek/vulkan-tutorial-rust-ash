@@ -1,6 +1,13 @@
 use std::time::Instant;
 
-use crate::{app::App, render::{Mat4, Vec2, Vec3, Vertex}, vulkan::{VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkImage, VkPipeline, VkSampler, VkSettings, VkShaderModule, VkSwapChainSync, VkTexture}};
+use crate::{
+    app::App,
+    render::{Mat4, Vec2, Vec3, Vertex},
+    vulkan::{
+        VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkImage,
+        VkPipeline, VkSampler, VkSettings, VkShaderModule, VkSwapChainSync, VkTexture,
+    },
+};
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
@@ -44,7 +51,7 @@ const VERTICES: [Vertex; 8] = [
         position: Vec3::new(-0.5, -0.5, -1.0),
         color: Vec3::new(1.0, 0.0, 1.0),
         tex_coord: Vec2::new(0.0, 0.0),
-    },    
+    },
 ];
 
 const INDICES: [u16; 12] = [0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4];
@@ -100,7 +107,7 @@ impl TutorialApp {
         let index_buffer = Self::create_index_buffer(&vk_context);
         let texture_image = Self::create_texture_image(&vk_context);
         let sampler = Self::create_sampler(&vk_context, &texture_image);
-        
+
         let mut app = TutorialApp {
             start_time: Instant::now(),
             swap_chain_context: None,
@@ -135,7 +142,7 @@ impl TutorialApp {
             &self.descriptor_set_layout,
             &uniform_buffers,
             &self.texture_image,
-            &self.sampler
+            &self.sampler,
         );
 
         self.swap_chain_context = Some(TutorialAppSwapChainContext {
@@ -164,7 +171,7 @@ impl TutorialApp {
             .stage_flags(vk::ShaderStageFlags::VERTEX);
         let sampler_layout_binding = vk::DescriptorSetLayoutBinding::builder()
             .binding(1)
-            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)  // TODO Use combined or separate?
+            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER) // TODO Use combined or separate?
             .descriptor_count(1)
             .stage_flags(vk::ShaderStageFlags::FRAGMENT);
         VkDescriptorSetLayout::new(
@@ -232,7 +239,7 @@ impl TutorialApp {
             None => return,
         };
 
-        let extent = self.vk_context.swap_chain.swap_extent;
+        let extent = self.vk_context.swap_chain.extent;
         let screen_width = extent.width as f32;
         let screen_height = extent.height as f32;
         let ubo = UniformBufferObject {
@@ -270,7 +277,7 @@ impl TutorialApp {
         layout: &VkDescriptorSetLayout,
         uniform_buffers: &[VkBuffer],
         texture: &VkTexture,
-        sampler: &VkSampler
+        sampler: &VkSampler,
     ) -> Vec<vk::DescriptorSet> {
         let count = uniform_buffers.len();
         log::info!("Creating {} descriptor sets", count);
@@ -344,7 +351,11 @@ impl TutorialApp {
 
     fn create_sampler(context: &VkContext, texture: &VkTexture) -> VkSampler {
         let physical_device_properties = context.physical_device.get_device_properties();
-        VkSampler::new(&context.device, texture.max_mip_levels, physical_device_properties.limits.max_sampler_anisotropy)
+        VkSampler::new(
+            &context.device,
+            texture.max_mip_levels,
+            physical_device_properties.limits.max_sampler_anisotropy,
+        )
     }
 
     fn record_commands(&self) {
@@ -363,18 +374,26 @@ impl TutorialApp {
                     .expect("Unable to begin command buffer")
             };
 
-            let clear_values = [vk::ClearValue {
-                color: vk::ClearColorValue {
-                    float32: [0.0, 0.0, 0.0, 1.0],
+            let clear_values = [
+                vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: [0.0, 0.0, 0.0, 1.0],
+                    },
                 },
-            }];
+                vk::ClearValue {
+                    depth_stencil: vk::ClearDepthStencilValue {
+                        depth: 1.0,
+                        stencil: 0,
+                    },
+                },
+            ];
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
                 .render_pass(context.render_pass.handle)
                 .framebuffer(context.swap_chain.framebuffers[index])
                 .render_area(vk::Rect2D {
                     offset: vk::Offset2D { x: 0, y: 0 },
-                    extent: context.swap_chain.swap_extent,
+                    extent: context.swap_chain.extent,
                 })
                 .clear_values(&clear_values);
 

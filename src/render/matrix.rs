@@ -126,8 +126,8 @@ impl Mat4 {
             data: [
                 f / aspect, 0.0, 0.0, 0.0,
                 0.0, -f, 0.0, 0.0,
-                0.0, 0.0, near_clip / d, -1.0,
-                0.0, 0.0, (near_clip * far_clip) / d, 0.0
+                0.0, 0.0, -far_clip / d, -1.0,
+                0.0, 0.0, -(far_clip * near_clip) / d, 0.0
             ]
         }
     }
