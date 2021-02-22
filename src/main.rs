@@ -71,18 +71,3 @@ fn create_window(size: &PhysicalSize<u32>) -> (EventLoop<()>, Window) {
         .expect("Unable to create application window");
     (event_loop, window)
 }
-
-// https://github.com/adrien-ben/vulkan-tutorial-rs/blob/master/src/main.rs
-// https://github.com/unknownue/vulkan-tutorial-rust/blob/master/src/tutorials/15_hello_triangle.rs
-
-// https://github.com/gfx-rs/wgpu-rs/blob/master/examples/hello-triangle/main.rs
-
-// https://stackoverflow.com/questions/30938499/why-is-the-sized-bound-necessary-in-this-trait
-// https://stackoverflow.com/questions/32300132/why-cant-i-store-a-value-and-a-reference-to-that-value-in-the-same-struct?rq=1
-// https://stevedonovan.github.io/rustifications/2018/08/18/rust-closures-are-hard.html
-// https://github.com/pretzelhammer/rust-blog/blob/master/posts/common-rust-lifetime-misconceptions.md
-// Struct<'a> -> muzu na ni drzet referenci maximalne po 'a, i.e. Struct<'static> -> muzu na ni drzet referenci jak dlouho chci
-
-// Minimize number of allocations and buffers, use offsets: https://developer.nvidia.com/vulkan-memory-management
-
-// Preskladat pak a namodelovat podle wgpu-rs hello triangle
