@@ -350,11 +350,11 @@ impl TutorialApp {
     }
 
     fn create_sampler(context: &VkContext, texture: &VkTexture) -> VkSampler {
-        let physical_device_properties = context.physical_device.get_device_properties();
+        let properties = context.device.get_properties();
         VkSampler::new(
             &context.device,
-            texture.max_mip_levels,
-            physical_device_properties.limits.max_sampler_anisotropy,
+            texture.image.mip_levels,
+            properties.limits.max_sampler_anisotropy,
         )
     }
 

@@ -62,13 +62,13 @@ impl VkPhysicalDevice {
         }
     }
 
-    pub fn get_device_features(&self) -> vk::PhysicalDeviceFeatures {
+    pub fn get_features(&self) -> vk::PhysicalDeviceFeatures {
         unsafe {
             self.instance.handle.get_physical_device_features(self.handle)
         }
     }
 
-    pub fn get_device_properties(&self) -> vk::PhysicalDeviceProperties {
+    pub fn get_properties(&self) -> vk::PhysicalDeviceProperties {
         unsafe {
             self.instance.handle.get_physical_device_properties(self.handle)
         }
@@ -127,10 +127,10 @@ fn describe_device(device: &VkPhysicalDevice) {
         log::info!("Supported commands: {:?}", queue_family.flags);
     }
 
-    let features = device.get_device_features();
+    let features = device.get_features();
     log::info!("Geometry Shader support: {}", features.geometry_shader == 1);
 
-    let properties = device.get_device_properties();
+    let properties = device.get_properties();
     log::info!("Max sampler anisotropy: {}", properties.limits.max_sampler_anisotropy);
 }
 
@@ -160,7 +160,7 @@ fn rate_device_suitability(
         return -1;
     }
 
-    let features = device.get_device_features();
+    let features = device.get_features();
     if features.sampler_anisotropy == vk::FALSE {
         return -1;
     }

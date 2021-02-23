@@ -106,6 +106,22 @@ impl VkDevice {
                 .expect("Failed to wait device idle!")
         };
     }
+
+    pub fn get_mem_properties(&self) -> vk::PhysicalDeviceMemoryProperties {
+        self.physical_device.get_mem_properties()
+    }
+
+    pub fn get_format_properties(&self, format: vk::Format) -> vk::FormatProperties {
+        self.physical_device.get_format_properties(format)
+    }
+
+    pub fn get_features(&self) -> vk::PhysicalDeviceFeatures {
+        self.physical_device.get_features()
+    }
+
+    pub fn get_properties(&self) -> vk::PhysicalDeviceProperties {
+        self.physical_device.get_properties()
+    }
 }
 
 impl Drop for VkDevice {

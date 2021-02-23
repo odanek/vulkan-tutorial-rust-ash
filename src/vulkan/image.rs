@@ -11,6 +11,7 @@ use super::{VkBuffer, VkCommandPool, VkDevice, VkPhysicalDevice};
 
 pub struct VkImage {
     device: Arc<VkDevice>,
+    pub mip_levels: u32,
     pub handle: vk::Image,
     pub memory: vk::DeviceMemory,
     pub extent: vk::Extent3D,
@@ -18,8 +19,7 @@ pub struct VkImage {
 
 pub struct VkTexture {
     device: Arc<VkDevice>,
-    pub image: VkImage,
-    pub max_mip_levels: u32,
+    pub image: VkImage,    
     pub image_view: vk::ImageView,
     pub format: vk::Format
 }
@@ -71,6 +71,7 @@ impl VkImage {
             handle,
             memory,
             extent,
+            mip_levels
         }
     }
 
@@ -133,7 +134,6 @@ impl VkImage {
         );
 
         copy_buffer_to_image(
-            device,
             command_pool,
             transfer_queue,
             &staging_buffer,
@@ -161,7 +161,6 @@ impl VkImage {
             device: Arc::clone(device),
             image,
             image_view,
-            max_mip_levels,
             format
         }
     }
@@ -206,8 +205,7 @@ impl VkImage {
         VkTexture {
             device: Arc::clone(device),
             image,
-            image_view,
-            max_mip_levels: 1,
+            image_view,            
             format
         }
     }
@@ -309,7 +307,7 @@ impl Drop for VkTexture {
 }
 
 impl VkSampler {
-    pub fn new(device: &Arc<VkDevice>, max_mip_levels: u32, max_anisotropy: f32) -> VkSampler {
+    pub fn new(device: &Arc<VkDevice>, mip_levels: u32, max_anisotropy: f32) -> VkSampler {
         let sampler_info = vk::SamplerCreateInfo::builder()
             .mag_filter(vk::Filter::LINEAR)
             .min_filter(vk::Filter::LINEAR)
@@ -325,7 +323,7 @@ impl VkSampler {
             .mipmap_mode(vk::SamplerMipmapMode::LINEAR)
             .mip_lod_bias(0.0)
             .min_lod(0.0)
-            .max_lod(max_mip_levels as _);
+            .max_lod(mip_levels as _);
 
         let handle = unsafe { device.handle.create_sampler(&sampler_info, None).unwrap() };
 
@@ -355,7 +353,7 @@ fn transition_image_layout(
     new_layout: vk::ImageLayout,
 ) {
     command_pool.execute_one_time_commands(transition_queue, |device, buffer| {
-        let (src_access_mask, src_stage) = match (old_layout) {
+        let (src_access_mask, src_stage) = match old_layout {
             vk::ImageLayout::UNDEFINED => (
                 vk::AccessFlags::empty(),
                 vk::PipelineStageFlags::TOP_OF_PIPE,
@@ -367,7 +365,7 @@ fn transition_image_layout(
             _ => panic!("Unsupported layout transition from ({:?}.", old_layout),
         };
 
-        let (dst_access_mask, dst_stage) = match (new_layout) {
+        let (dst_access_mask, dst_stage) = match new_layout {
             vk::ImageLayout::TRANSFER_DST_OPTIMAL => (
                 vk::AccessFlags::TRANSFER_WRITE,
                 vk::PipelineStageFlags::TRANSFER,
@@ -390,7 +388,7 @@ fn transition_image_layout(
 
         let aspect_mask = if new_layout == vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL {
             let mut mask = vk::ImageAspectFlags::DEPTH;
-            if has_stencil_component(format) {
+            if VkImage::has_stencil_component(format) {
                 mask |= vk::ImageAspectFlags::STENCIL;
             }
             mask
@@ -430,12 +428,7 @@ fn transition_image_layout(
     });
 }
 
-fn has_stencil_component(format: vk::Format) -> bool {
-    format == vk::Format::D32_SFLOAT_S8_UINT || format == vk::Format::D24_UNORM_S8_UINT
-}
-
-fn copy_buffer_to_image(
-    device: &VkDevice,
+fn copy_buffer_to_image(    
     command_pool: &VkCommandPool,
     transition_queue: vk::Queue,
     buffer: &VkBuffer,
@@ -482,7 +475,7 @@ fn generate_mipmaps(
     format: vk::Format,
     mip_levels: u32,
 ) {
-    let format_properties = device.physical_device.get_format_properties(format);
+    let format_properties = device.get_format_properties(format);
     if !format_properties
         .optimal_tiling_features
         .contains(vk::FormatFeatureFlags::SAMPLED_IMAGE_FILTER_LINEAR)
