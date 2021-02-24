@@ -122,6 +122,10 @@ impl VkDevice {
     pub fn get_properties(&self) -> vk::PhysicalDeviceProperties {
         self.physical_device.get_properties()
     }
+
+    pub fn get_max_usable_sample_count(&self) -> vk::SampleCountFlags {
+        self.physical_device.get_max_usable_sample_count()
+    }
 }
 
 impl Drop for VkDevice {

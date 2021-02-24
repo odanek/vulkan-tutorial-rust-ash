@@ -11,6 +11,7 @@ use super::{
 };
 
 pub struct VkContext {
+    pub msaa_samples: vk::SampleCountFlags,
     pub depth_texture: VkTexture,
     pub command_buffers: Vec<vk::CommandBuffer>,
     pub command_pool: VkCommandPool,
@@ -36,6 +37,8 @@ impl VkContext {
         let surface = VkSurface::new(&entry, &instance, window);
         let physical_device = Arc::new(VkPhysicalDevice::new(&instance, &surface));
         let device = Arc::new(VkDevice::new(&physical_device, &surface));
+        
+        let msaa_samples = vk::SampleCountFlags::TYPE_1; //.get_max_usable_sample_count();
 
         let window_size = window.inner_size();
 
@@ -54,7 +57,7 @@ impl VkContext {
             device.graphics_queue,
             depth_format,
             swap_chain.extent,
-            vk::SampleCountFlags::TYPE_1,
+            msaa_samples,
         );
         
         let render_pass = VkRenderPass::new(&device, &swap_chain, depth_format);
@@ -64,6 +67,7 @@ impl VkContext {
         let command_buffers = command_pool.create_command_buffers(swap_chain.image_count);
 
         VkContext {            
+            msaa_samples,
             depth_texture,
             command_buffers,
             command_pool,
@@ -96,7 +100,7 @@ impl VkContext {
             self.device.graphics_queue,
             depth_format,
             self.swap_chain.extent,
-            vk::SampleCountFlags::TYPE_1,
+            self.msaa_samples,
         );
 
         self.render_pass = VkRenderPass::new(&self.device, &self.swap_chain, depth_format);

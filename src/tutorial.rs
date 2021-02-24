@@ -343,9 +343,10 @@ impl TutorialApp {
     fn create_texture_image(context: &VkContext) -> VkTexture {
         VkImage::load_texture(
             &context.device,
+            "assets/texture.jpg",
             &context.command_pool,
             context.device.graphics_queue, // TODO: Use transfer queue
-            "assets/texture.jpg",
+            context.msaa_samples
         )
     }
 

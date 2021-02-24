@@ -11,10 +11,11 @@ use super::{VkBuffer, VkCommandPool, VkDevice, VkPhysicalDevice};
 
 pub struct VkImage {
     device: Arc<VkDevice>,
-    pub mip_levels: u32,
     pub handle: vk::Image,
     pub memory: vk::DeviceMemory,
     pub extent: vk::Extent3D,
+    pub mip_levels: u32,
+    pub msaa_samples: vk::SampleCountFlags
 }
 
 pub struct VkTexture {
@@ -35,7 +36,7 @@ impl VkImage {
         properties: vk::MemoryPropertyFlags,
         extent: vk::Extent3D,
         mip_levels: u32,
-        sample_count: vk::SampleCountFlags,
+        msaa_samples: vk::SampleCountFlags,
         format: vk::Format,
         tiling: vk::ImageTiling,
         usage: vk::ImageUsageFlags,
@@ -50,7 +51,7 @@ impl VkImage {
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .usage(usage)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .samples(sample_count)
+            .samples(msaa_samples)
             .flags(vk::ImageCreateFlags::empty());
 
         let handle = unsafe { device.handle.create_image(&image_info, None).unwrap() };
@@ -71,15 +72,17 @@ impl VkImage {
             handle,
             memory,
             extent,
-            mip_levels
+            mip_levels,
+            msaa_samples
         }
     }
 
     pub fn load_texture(
         device: &Arc<VkDevice>,
+        path: &str,
         command_pool: &VkCommandPool,
         transfer_queue: vk::Queue,
-        path: &str,
+        msaa_samples: vk::SampleCountFlags,
     ) -> VkTexture {
         let mut buf = Vec::new();
         let mut file = File::open(path).unwrap();
@@ -115,7 +118,7 @@ impl VkImage {
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
             extent,
             max_mip_levels,
-            vk::SampleCountFlags::TYPE_1,
+            msaa_samples,
             format,
             vk::ImageTiling::OPTIMAL,
             vk::ImageUsageFlags::TRANSFER_SRC
