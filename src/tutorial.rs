@@ -193,6 +193,7 @@ impl TutorialApp {
             &vs,
             &fs,
             &[descriptor_set_layout.handle],
+            context.msaa_samples,
         )
     }
 
@@ -315,7 +316,7 @@ impl TutorialApp {
 
                 let image_info = vk::DescriptorImageInfo::builder()
                     .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
-                    .image_view(texture.image_view)
+                    .image_view(texture.view)
                     .sampler(sampler.handle)
                     .build();
                 let image_infos = [image_info];
@@ -346,7 +347,6 @@ impl TutorialApp {
             "assets/texture.jpg",
             &context.command_pool,
             context.device.graphics_queue, // TODO: Use transfer queue
-            context.msaa_samples
         )
     }
 

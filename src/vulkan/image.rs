@@ -21,7 +21,7 @@ pub struct VkImage {
 pub struct VkTexture {
     device: Arc<VkDevice>,
     pub image: VkImage,    
-    pub image_view: vk::ImageView,
+    pub view: vk::ImageView,
     pub format: vk::Format
 }
 
@@ -81,8 +81,7 @@ impl VkImage {
         device: &Arc<VkDevice>,
         path: &str,
         command_pool: &VkCommandPool,
-        transfer_queue: vk::Queue,
-        msaa_samples: vk::SampleCountFlags,
+        transfer_queue: vk::Queue
     ) -> VkTexture {
         let mut buf = Vec::new();
         let mut file = File::open(path).unwrap();
@@ -118,7 +117,7 @@ impl VkImage {
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
             extent,
             max_mip_levels,
-            msaa_samples,
+            vk::SampleCountFlags::TYPE_1,
             format,
             vk::ImageTiling::OPTIMAL,
             vk::ImageUsageFlags::TRANSFER_SRC
@@ -154,7 +153,7 @@ impl VkImage {
             max_mip_levels,
         );
 
-        let image_view = image.create_view(
+        let view = image.create_view(
             max_mip_levels,
             format,
             vk::ImageAspectFlags::COLOR,
@@ -163,7 +162,7 @@ impl VkImage {
         VkTexture {
             device: Arc::clone(device),
             image,
-            image_view,
+            view,
             format
         }
     }
@@ -202,16 +201,47 @@ impl VkImage {
             vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         );
 
-        let image_view =
+        let view =
             image.create_view(1, format, vk::ImageAspectFlags::DEPTH);
 
         VkTexture {
             device: Arc::clone(device),
             image,
-            image_view,            
+            view,            
             format
         }
     }
+
+    pub fn create_color_image(
+        device: &Arc<VkDevice>,
+        format: vk::Format,
+        extent: vk::Extent2D,
+        msaa_samples: vk::SampleCountFlags,
+    ) -> VkTexture {
+        let image = VkImage::new(
+            &device,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            vk::Extent3D {
+                width: extent.width,
+                height: extent.height,
+                depth: 1,
+            },
+            1,
+            msaa_samples,
+            format,
+            vk::ImageTiling::OPTIMAL,
+            vk::ImageUsageFlags::TRANSIENT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT,
+        );
+        let view = image.create_view(1, format, vk::ImageAspectFlags::COLOR);
+    
+        VkTexture {
+            device: Arc::clone(device),
+            image,
+            view,
+            format
+        }
+    }
+    
 
     pub fn create_view(
         &self,
@@ -304,7 +334,7 @@ impl Drop for VkTexture {
     fn drop(&mut self) {
         log::debug!("Dropping texture");
         unsafe {
-            self.device.handle.destroy_image_view(self.image_view, None);
+            self.device.handle.destroy_image_view(self.view, None);
         }
     }
 }
@@ -618,30 +648,4 @@ fn generate_mipmaps(
             )
         };
     });
-}
-
-fn create_image_view(device: &VkDevice, image: vk::Image, format: vk::Format) -> vk::ImageView {
-    let create_info = vk::ImageViewCreateInfo::builder()
-        .image(image)
-        .view_type(vk::ImageViewType::TYPE_2D)
-        .format(format)
-        .components(vk::ComponentMapping {
-            r: vk::ComponentSwizzle::IDENTITY,
-            g: vk::ComponentSwizzle::IDENTITY,
-            b: vk::ComponentSwizzle::IDENTITY,
-            a: vk::ComponentSwizzle::IDENTITY,
-        })
-        .subresource_range(vk::ImageSubresourceRange {
-            aspect_mask: vk::ImageAspectFlags::COLOR,
-            base_mip_level: 0,
-            level_count: 1,
-            base_array_layer: 0,
-            layer_count: 1,
-        });
-    unsafe {
-        device
-            .handle
-            .create_image_view(&create_info, None)
-            .expect("Unable to create image view")
-    }
 }

@@ -93,13 +93,13 @@ impl VkSwapChain {
         }
     }
 
-    pub fn create_frame_buffers(&mut self, render_pass: &VkRenderPass, depth_texture: &VkTexture) {
+    pub fn create_frame_buffers(&mut self, render_pass: &VkRenderPass, depth_texture: &VkTexture, color_image: &VkTexture) {
         log::info!("Creating framebuffers");
 
         self.framebuffers = self
             .image_views
             .iter()
-            .map(|view| [*view, depth_texture.image_view])
+            .map(|view| [color_image.view, depth_texture.view, *view])
             .map(|attachments| {
                 let framebuffer_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(render_pass.handle)

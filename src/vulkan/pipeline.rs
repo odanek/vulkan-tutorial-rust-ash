@@ -22,6 +22,7 @@ impl VkPipeline {
         vertex_shader_module: &VkShaderModule,
         fragment_shader_module: &VkShaderModule,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
+        msaa_samples: vk::SampleCountFlags
     ) -> VkPipeline {
         log::info!("Creating pipeline");
 
@@ -92,7 +93,7 @@ impl VkPipeline {
 
         let multisampling_info = vk::PipelineMultisampleStateCreateInfo::builder()
             .sample_shading_enable(false)
-            .rasterization_samples(vk::SampleCountFlags::TYPE_1)
+            .rasterization_samples(msaa_samples)
             .min_sample_shading(1.0f32)
             // .sample_masks()
             .alpha_to_coverage_enable(false)
