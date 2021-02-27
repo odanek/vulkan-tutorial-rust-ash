@@ -26,10 +26,13 @@ impl VkSwapChain {
     pub fn new(device: &Arc<VkDevice>, surface: &VkSurface, dimensions: &[u32; 2]) -> VkSwapChain {
         let surface_caps =
             surface.get_physical_device_surface_capabilities(&device.physical_device);
+        
+        // TODO: These are constant when resolution changes
         let format = choose_swapchain_surface_format(&surface_caps.formats);
         log::info!("Choosing swap-chain image format: {:?}", format);
         let present_mode = choose_swapchain_surface_present_mode(&surface_caps.present_modes);
         log::info!("Choosing swap-chain presentation mode: {:?}", present_mode);
+
         let extent = choose_swapchain_extent(surface_caps.capabilities, dimensions);
         log::info!(
             "Choosing swap-chain swap extent: {:?} for window size: {:?}",

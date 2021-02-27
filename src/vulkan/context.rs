@@ -10,14 +10,15 @@ use super::{
     settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain, VkTexture,
 };
 
-pub struct VkContext {
-    pub msaa_samples: vk::SampleCountFlags,
+pub struct VkContext {    
     pub color_image: VkTexture,
     pub depth_image: VkTexture,
     pub command_buffers: Vec<vk::CommandBuffer>,
-    pub command_pool: VkCommandPool,
-    pub render_pass: VkRenderPass,
     pub swap_chain: VkSwapChain,
+        
+    pub render_pass: VkRenderPass,    
+    pub command_pool: VkCommandPool,    
+    pub msaa_samples: vk::SampleCountFlags,
     pub device: Arc<VkDevice>,
     pub physical_device: Arc<VkPhysicalDevice>,
     pub surface: VkSurface,
@@ -50,10 +51,11 @@ impl VkContext {
         let mut swap_chain =
             VkSwapChain::new(&device, &surface, &[window_size.width, window_size.height]);
 
-        log::info!("Creating color image for MSAA");
-        let color_image = VkImage::create_color_image(&device, swap_chain.format.format, swap_chain.extent, msaa_samples);
-
         let depth_format = VkImage::find_depth_format(&physical_device);
+        let color_format = swap_chain.format.format;
+    
+        log::info!("Creating color image for MSAA");
+        let color_image = VkImage::create_color_image(&device, color_format, swap_chain.extent, msaa_samples);
 
         log::info!("Creating depth image with format {:?}", depth_format);
         let depth_image = VkImage::create_depth_image(
@@ -65,7 +67,7 @@ impl VkContext {
             msaa_samples,
         );
 
-        let render_pass = VkRenderPass::new(&device, &swap_chain, depth_format, msaa_samples);
+        let render_pass = VkRenderPass::new(&device, color_format, depth_format, msaa_samples);
         swap_chain.create_frame_buffers(&render_pass, &depth_image, &color_image);
 
         log::info!("Creating swap-chain command buffers");
@@ -91,8 +93,7 @@ impl VkContext {
     pub fn cleanup_swap_chain(&mut self) {
         self.command_pool
             .clear_command_buffers(&self.command_buffers);
-        self.swap_chain.cleanup_framebuffers(&self.device);
-        self.render_pass.cleanup(&self.device);
+        self.swap_chain.cleanup_framebuffers(&self.device);        
         self.swap_chain.cleanup(&self.device);
     }
 
@@ -100,7 +101,8 @@ impl VkContext {
     pub fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
         self.swap_chain = VkSwapChain::new(&self.device, &self.surface, &[size.width, size.height]);
 
-        self.color_image = VkImage::create_color_image(&self.device, self.swap_chain.format.format, self.swap_chain.extent, self.msaa_samples);
+        let color_format = self.swap_chain.format.format;
+        self.color_image = VkImage::create_color_image(&self.device, color_format, self.swap_chain.extent, self.msaa_samples);
 
         let depth_format = VkImage::find_depth_format(&self.physical_device);
         self.depth_image = VkImage::create_depth_image(
@@ -111,8 +113,7 @@ impl VkContext {
             self.swap_chain.extent,
             self.msaa_samples,
         );
-
-        self.render_pass = VkRenderPass::new(&self.device, &self.swap_chain, depth_format, self.msaa_samples);
+        
         self.swap_chain
             .create_frame_buffers(&self.render_pass, &self.depth_image, &self.color_image);
 

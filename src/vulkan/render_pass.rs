@@ -1,23 +1,25 @@
+use std::sync::Arc;
+
 use ash::{version::DeviceV1_0, vk};
 
-use super::{device::VkDevice, swap_chain::VkSwapChain};
+use super::device::VkDevice;
 
 pub struct VkRenderPass {
+    device: Arc<VkDevice>,
     pub handle: vk::RenderPass,
 }
 
 impl VkRenderPass {
     pub fn new(
-        device: &VkDevice,
-        swap_chain: &VkSwapChain,
+        device: &Arc<VkDevice>,
+        format: vk::Format,
         depth_format: vk::Format,
         msaa_samples: vk::SampleCountFlags,
     ) -> VkRenderPass {
         log::info!("Creating render pass");
 
-        let color_format = swap_chain.format.format;
         let color_attachment_desc = vk::AttachmentDescription::builder()
-            .format(color_format)
+            .format(format)
             .samples(msaa_samples)
             .load_op(vk::AttachmentLoadOp::CLEAR)
             .store_op(vk::AttachmentStoreOp::STORE)
@@ -39,7 +41,7 @@ impl VkRenderPass {
             .build();
 
         let color_attachment_resolve = vk::AttachmentDescription::builder()
-            .format(color_format)
+            .format(format)
             .samples(vk::SampleCountFlags::TYPE_1)
             .load_op(vk::AttachmentLoadOp::DONT_CARE)
             .store_op(vk::AttachmentStoreOp::STORE)
@@ -112,13 +114,18 @@ impl VkRenderPass {
                 .expect("Unable to create render pass")
         };
 
-        VkRenderPass { handle }
+        VkRenderPass {
+            device: Arc::clone(device),
+            handle,
+        }
     }
+}
 
-    pub fn cleanup(&self, device: &VkDevice) {
+impl Drop for VkRenderPass {
+    fn drop(&mut self) {
         log::debug!("Dropping render pass");
         unsafe {
-            device.handle.destroy_render_pass(self.handle, None);
+            self.device.handle.destroy_render_pass(self.handle, None);
         }
     }
 }
