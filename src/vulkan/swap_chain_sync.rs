@@ -2,6 +2,7 @@ use std::{sync::Arc};
 
 use super::{device::VkDevice, fence::VkFence, semaphore::VkSemaphore, swap_chain::VkSwapChain};
 
+
 pub struct VkSwapChainSync {
     pub max_frames_in_flight: usize,
     pub current_frame: usize,

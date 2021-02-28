@@ -7,26 +7,45 @@ use ash::{
     vk::{self, SwapchainKHR},
 };
 
-use super::{VkImage, VkTexture, device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
+use super::{VkFence, VkImage, VkTexture, device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
+
+pub struct VkSwapChainImage {
+    pub image: vk::Image,
+    pub view: vk::ImageView,
+    pub framebuffer: vk::Framebuffer,
+    pub color_image: VkTexture,
+    pub depth_image: VkTexture,
+    pub frame: Option<usize>,
+}
+
+pub struct VkFrame {
+    pub available: VkSemaphore,
+    pub finished: VkSemaphore,
+    pub in_flight: VkFence,
+}
 
 pub struct VkSwapChain {
     device: Arc<VkDevice>,
+    pub handle: SwapchainKHR,
+    pub extension: Swapchain,
     pub format: vk::SurfaceFormatKHR,
     pub present_mode: vk::PresentModeKHR,
-    pub extent: vk::Extent2D,
+    pub extent: vk::Extent2D,    
+
     pub image_count: u32,
-    pub extension: Swapchain,
-    pub handle: SwapchainKHR,
     pub images: Vec<vk::Image>,
     pub image_views: Vec<vk::ImageView>,
     pub framebuffers: Vec<vk::Framebuffer>,
+
+    // pub images: Vec<VkSwapChainImage>,
+    // pub frames: Vec<VkFrame>,
 }
 
 impl VkSwapChain {
-    pub fn new(device: &Arc<VkDevice>, surface: &VkSurface, dimensions: &[u32; 2]) -> VkSwapChain {
+    pub fn new(device: &Arc<VkDevice>, surface: &VkSurface, dimensions: &[u32; 2]/*, max_frames: u32*/) -> VkSwapChain {
         let surface_caps =
             surface.get_physical_device_surface_capabilities(&device.physical_device);
-        
+
         // TODO: These are constant when resolution changes
         let format = choose_swapchain_surface_format(&surface_caps.formats);
         log::info!("Choosing swap-chain image format: {:?}", format);
@@ -42,6 +61,7 @@ impl VkSwapChain {
         let image_count = choose_image_count(&surface_caps.capabilities);
         log::info!("Choosing swap-chain image count: {}", image_count);
 
+        // TODO: This changes with resolution
         let mut create_info = vk::SwapchainCreateInfoKHR::builder()
             .surface(surface.handle)
             .min_image_count(image_count)
@@ -96,7 +116,12 @@ impl VkSwapChain {
         }
     }
 
-    pub fn create_frame_buffers(&mut self, render_pass: &VkRenderPass, depth_texture: &VkTexture, color_image: &VkTexture) {
+    pub fn create_frame_buffers(
+        &mut self,
+        render_pass: &VkRenderPass,
+        depth_texture: &VkTexture,
+        color_image: &VkTexture,
+    ) {
         log::info!("Creating framebuffers");
 
         self.framebuffers = self
@@ -150,6 +175,8 @@ impl VkSwapChain {
         }
         self.framebuffers.clear();
     }
+
+    // TODO: Resize method
 }
 
 fn choose_swapchain_surface_format(
@@ -207,6 +234,8 @@ fn create_image_views(
 ) -> Vec<vk::ImageView> {
     images
         .iter()
-        .map(|&image| VkImage::create_image_view(device, image, 1, format, vk::ImageAspectFlags::COLOR))
+        .map(|&image| {
+            VkImage::create_image_view(device, image, 1, format, vk::ImageAspectFlags::COLOR)
+        })
         .collect::<Vec<_>>()
 }

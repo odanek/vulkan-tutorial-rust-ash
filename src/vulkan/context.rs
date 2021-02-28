@@ -10,14 +10,14 @@ use super::{
     settings::VkSettings, surface::VkSurface, swap_chain::VkSwapChain, VkTexture,
 };
 
-pub struct VkContext {    
+pub struct VkContext {
     pub color_image: VkTexture,
     pub depth_image: VkTexture,
     pub command_buffers: Vec<vk::CommandBuffer>,
     pub swap_chain: VkSwapChain,
-        
-    pub render_pass: VkRenderPass,    
-    pub command_pool: VkCommandPool,    
+
+    pub render_pass: VkRenderPass,
+    pub command_pool: VkCommandPool,
     pub msaa_samples: vk::SampleCountFlags,
     pub device: Arc<VkDevice>,
     pub physical_device: Arc<VkPhysicalDevice>,
@@ -93,7 +93,7 @@ impl VkContext {
     pub fn cleanup_swap_chain(&mut self) {
         self.command_pool
             .clear_command_buffers(&self.command_buffers);
-        self.swap_chain.cleanup_framebuffers(&self.device);        
+        self.swap_chain.cleanup_framebuffers(&self.device);
         self.swap_chain.cleanup(&self.device);
     }
 
@@ -102,7 +102,12 @@ impl VkContext {
         self.swap_chain = VkSwapChain::new(&self.device, &self.surface, &[size.width, size.height]);
 
         let color_format = self.swap_chain.format.format;
-        self.color_image = VkImage::create_color_image(&self.device, color_format, self.swap_chain.extent, self.msaa_samples);
+        self.color_image = VkImage::create_color_image(
+            &self.device,
+            color_format,
+            self.swap_chain.extent,
+            self.msaa_samples,
+        );
 
         let depth_format = VkImage::find_depth_format(&self.physical_device);
         self.depth_image = VkImage::create_depth_image(
@@ -113,9 +118,12 @@ impl VkContext {
             self.swap_chain.extent,
             self.msaa_samples,
         );
-        
-        self.swap_chain
-            .create_frame_buffers(&self.render_pass, &self.depth_image, &self.color_image);
+
+        self.swap_chain.create_frame_buffers(
+            &self.render_pass,
+            &self.depth_image,
+            &self.color_image,
+        );
 
         self.command_buffers = self
             .command_pool
@@ -129,4 +137,3 @@ impl Drop for VkContext {
         self.cleanup_swap_chain();
     }
 }
-
