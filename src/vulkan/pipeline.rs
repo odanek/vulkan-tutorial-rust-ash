@@ -17,7 +17,7 @@ pub struct VkPipeline {
 impl VkPipeline {
     pub fn new(
         device: &Arc<VkDevice>,
-        swap_chain: &VkSwapChain,
+        extent: vk::Extent2D,
         render_pass: &VkRenderPass,
         vertex_shader_module: &VkShaderModule,
         fragment_shader_module: &VkShaderModule,
@@ -55,14 +55,14 @@ impl VkPipeline {
         let viewports = [vk::Viewport {
             x: 0.0,
             y: 0.0,
-            width: swap_chain.extent.width as f32,
-            height: swap_chain.extent.height as f32,
+            width: extent.width as f32,
+            height: extent.height as f32,
             min_depth: 0.0,
             max_depth: 1.0,
         }];
         let scissors = [vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
-            extent: swap_chain.extent,
+            extent: extent,
         }];
         let viewport_info = vk::PipelineViewportStateCreateInfo::builder()
             .viewports(&viewports)

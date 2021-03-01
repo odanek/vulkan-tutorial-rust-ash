@@ -4,8 +4,9 @@ use crate::{
     app::App,
     render::{Mat4, Vec2, Vec3, Vertex},
     vulkan::{
-        VkBuffer, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice, VkImage,
-        VkPipeline, VkSampler, VkSettings, VkShaderModule, VkSwapChainSync, VkTexture,
+        VkBuffer, VkCommandPool, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice,
+        VkImage, VkPipeline, VkRenderPass, VkSampler, VkSettings, VkShaderModule, VkSurface,
+        VkSwapChain, VkTexture,
     },
 };
 use ash::{version::DeviceV1_0, vk};
@@ -64,13 +65,12 @@ struct UniformBufferObject {
     proj: Mat4,
 }
 
-
-
 pub struct TutorialAppSwapChainContext {
     uniform_buffers: Vec<VkBuffer>,
     pipeline: VkPipeline,
     descriptor_sets: Vec<vk::DescriptorSet>,
-    descriptor_pool: VkDescriptorPool,
+    current_frame: usize,
+    swap_chain: VkSwapChain,
 }
 
 pub struct TutorialApp {
@@ -80,10 +80,18 @@ pub struct TutorialApp {
     texture_image: VkTexture,
     index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
+    descriptor_pool: VkDescriptorPool,
     descriptor_set_layout: VkDescriptorSetLayout,
     vertex_shader_module: VkShaderModule,
     fragment_shader_module: VkShaderModule,
-    swap_chain_sync: VkSwapChainSync,
+    render_pass: VkRenderPass,
+    swap_chain_format: vk::SurfaceFormatKHR,
+    swap_chain_present_mode: vk::PresentModeKHR,
+    swap_image_count: u32,
+    command_pool: VkCommandPool,
+    depth_format: vk::Format,
+    msaa_samples: vk::SampleCountFlags,
+    window_size: PhysicalSize<u32>,
     vk_context: VkContext,
 }
 
@@ -91,24 +99,50 @@ impl TutorialApp {
     pub fn new(window: &Window) -> TutorialApp {
         let vk_settings = VkSettings { validation: true };
         let vk_context = VkContext::new(&window, &vk_settings);
-        let swap_chain_sync = VkSwapChainSync::new(&vk_context.device, &vk_context.swap_chain, 2);
+        let device = &vk_context.device;
+
+        let msaa_samples = device.get_max_usable_sample_count();
+        log::info!("Using {:?} MSAA samples", msaa_samples);
+
+        let window_size = window.inner_size();
+
+        log::info!("Creating swap-chain command pool");
+        let command_pool = VkCommandPool::new(&device, device.graphics_queue_family);
+
+        let depth_format = VkImage::find_depth_format(&vk_context.physical_device);
+        log::info!("Choosing depth format {:?}", depth_format);
+
+        let (swap_chain_format, swap_chain_present_mode, swap_image_count) =
+            Self::choose_swap_chain_format(device, &vk_context.surface);
+
+        log::info!("Creating render pass");
+        let render_pass = VkRenderPass::new(
+            &device,
+            swap_chain_format.format,
+            depth_format,
+            msaa_samples,
+        );
+
         let vertex_shader_module = VkShaderModule::new_from_file(
-            &vk_context.device,
+            &device,
             vk::ShaderStageFlags::VERTEX,
             "shader/vert.spv",
             "main",
         );
         let fragment_shader_module = VkShaderModule::new_from_file(
-            &vk_context.device,
+            &device,
             vk::ShaderStageFlags::FRAGMENT,
             "shader/frag.spv",
             "main",
         );
         let descriptor_set_layout = Self::create_descriptor_set_layout(&vk_context);
-        let vertex_buffer = Self::create_vertex_buffer(&vk_context);
-        let index_buffer = Self::create_index_buffer(&vk_context);
-        let texture_image = Self::create_texture_image(&vk_context);
+        let descriptor_pool = Self::create_descriptor_pool(&vk_context, swap_image_count);
+
+        let vertex_buffer = Self::create_vertex_buffer(&vk_context, &command_pool);
+        let index_buffer = Self::create_index_buffer(&vk_context, &command_pool);
+        let texture_image = Self::create_texture_image(&vk_context, &command_pool);
         let sampler = Self::create_sampler(&vk_context, &texture_image);
+        let window_size = window.inner_size();
 
         let mut app = TutorialApp {
             start_time: Instant::now(),
@@ -118,29 +152,99 @@ impl TutorialApp {
             index_buffer,
             vertex_buffer,
             descriptor_set_layout,
+            descriptor_pool,
             vertex_shader_module,
             fragment_shader_module,
-            swap_chain_sync,
+            render_pass,
+            swap_chain_format,
+            swap_chain_present_mode,
+            swap_image_count,
+            command_pool,
+            msaa_samples,
+            depth_format,
             vk_context,
+            window_size,
         };
-        app.create_swap_chain();
+        app.create_swap_chain(app.window_size);
 
         app
     }
 
-    fn create_swap_chain(&mut self) {
-        let context = &self.vk_context;
-        let pipeline = Self::create_pipeline(
-            context,
-            &self.vertex_shader_module,
-            &self.fragment_shader_module,
-            &self.descriptor_set_layout,
+    fn choose_swap_chain_format(
+        device: &VkDevice,
+        surface: &VkSurface,
+    ) -> (vk::SurfaceFormatKHR, vk::PresentModeKHR, u32) {
+        let surface_caps =
+            surface.get_physical_device_surface_capabilities(&device.physical_device);
+        let format = Self::choose_swapchain_surface_format(&surface_caps.formats);
+        log::info!("Choosing swap-chain image format: {:?}", format);
+        let present_mode = Self::choose_swapchain_surface_present_mode(&surface_caps.present_modes);
+        log::info!("Choosing swap-chain presentation mode: {:?}", present_mode);
+        let image_count = Self::choose_image_count(&surface_caps.capabilities);
+        log::info!("Choosing swap-chain image count: {}", image_count);
+
+        (format, present_mode, image_count)
+    }
+
+    fn choose_swapchain_surface_format(
+        available_formats: &[vk::SurfaceFormatKHR],
+    ) -> vk::SurfaceFormatKHR {
+        *available_formats
+            .iter()
+            .find(|format| {
+                format.format == vk::Format::B8G8R8A8_UNORM
+                    && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
+            })
+            .unwrap_or(&available_formats[0])
+    }
+
+    fn choose_swapchain_surface_present_mode(
+        available_present_modes: &[vk::PresentModeKHR],
+    ) -> vk::PresentModeKHR {
+        if available_present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
+            vk::PresentModeKHR::MAILBOX
+        } else if available_present_modes.contains(&vk::PresentModeKHR::FIFO) {
+            vk::PresentModeKHR::FIFO
+        } else {
+            vk::PresentModeKHR::IMMEDIATE
+        }
+    }
+
+    fn choose_image_count(capabilities: &vk::SurfaceCapabilitiesKHR) -> u32 {
+        let max = capabilities.max_image_count;
+        let mut preferred = capabilities.min_image_count + 1;
+        if max > 0 && preferred > max {
+            preferred = max;
+        }
+        preferred
+    }
+
+    fn create_swap_chain(&mut self, size: PhysicalSize<u32>) {
+        log::info!("Creating swap-chain");
+
+        let mut swap_chain = VkSwapChain::new(
+            &self.vk_context.device,
+            &self.vk_context.surface,
+            self.swap_chain_format,
+            self.swap_chain_present_mode,
+            self.swap_image_count,
+            &[size.width, size.height],
         );
-        let uniform_buffers = Self::create_uniform_buffers(context);
-        let descriptor_pool = Self::create_descriptor_pool(context);
+        swap_chain.initialize_images(
+            2,
+            &self.render_pass,
+            self.depth_format,
+            self.msaa_samples,
+            &self.command_pool,
+            self.vk_context.device.graphics_queue,
+        );
+
+        let context = &self.vk_context;
+        let pipeline = self.create_pipeline(swap_chain.extent);
+        let uniform_buffers = Self::create_uniform_buffers(context, self.swap_image_count);
         let descriptor_sets = Self::create_descriptor_sets(
             &context.device,
-            &descriptor_pool,
+            &self.descriptor_pool,
             &self.descriptor_set_layout,
             &uniform_buffers,
             &self.texture_image,
@@ -148,10 +252,11 @@ impl TutorialApp {
         );
 
         self.swap_chain_context = Some(TutorialAppSwapChainContext {
+            swap_chain,
+            current_frame: 0,
             pipeline,
             uniform_buffers,
             descriptor_sets,
-            descriptor_pool,
         });
 
         self.record_commands();
@@ -160,9 +265,7 @@ impl TutorialApp {
     fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
         self.vk_context.device.wait_idle();
         self.swap_chain_context = None;
-        self.vk_context.cleanup_swap_chain();
-        self.vk_context.recreate_swap_chain(size);
-        self.create_swap_chain();
+        self.create_swap_chain(size);
     }
 
     fn create_descriptor_set_layout(context: &VkContext) -> VkDescriptorSetLayout {
@@ -182,46 +285,40 @@ impl TutorialApp {
         )
     }
 
-    fn create_pipeline(
-        context: &VkContext,
-        vs: &VkShaderModule,
-        fs: &VkShaderModule,
-        descriptor_set_layout: &VkDescriptorSetLayout,
-    ) -> VkPipeline {
+    fn create_pipeline(&self, extent: vk::Extent2D) -> VkPipeline {
         VkPipeline::new(
-            &context.device,
-            &context.swap_chain,
-            &context.render_pass,
-            &vs,
-            &fs,
-            &[descriptor_set_layout.handle],
-            context.msaa_samples,
+            &self.vk_context.device,
+            extent,
+            &self.render_pass,
+            &self.vertex_shader_module,
+            &self.fragment_shader_module,
+            &[self.descriptor_set_layout.handle],
+            self.msaa_samples,
         )
     }
 
-    fn create_vertex_buffer(context: &VkContext) -> VkBuffer {
+    fn create_vertex_buffer(context: &VkContext, command_pool: &VkCommandPool) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
-            &context.command_pool,
+            &command_pool,
             context.device.graphics_queue,
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &VERTICES,
         )
     }
 
-    fn create_index_buffer(context: &VkContext) -> VkBuffer {
+    fn create_index_buffer(context: &VkContext, command_pool: &VkCommandPool) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
-            &context.command_pool,
+            &command_pool,
             context.device.graphics_queue,
             vk::BufferUsageFlags::INDEX_BUFFER,
             &INDICES,
         )
     }
 
-    fn create_uniform_buffers(context: &VkContext) -> Vec<VkBuffer> {
+    fn create_uniform_buffers(context: &VkContext, count: u32) -> Vec<VkBuffer> {
         let size = std::mem::size_of::<UniformBufferObject>() as u64;
-        let count = context.swap_chain.image_count;
         log::info!("Creating {} uniform buffers", count);
 
         (0..count)
@@ -236,13 +333,7 @@ impl TutorialApp {
             .collect::<Vec<_>>()
     }
 
-    fn update_uniform_buffer(&self, image_index: usize, elapsed_time: f32) {
-        let swap_context = match &self.swap_chain_context {
-            Some(ref context) => context,
-            None => return,
-        };
-
-        let extent = self.vk_context.swap_chain.extent;
+    fn update_uniform_buffer(buffer: &VkBuffer, extent: vk::Extent2D, elapsed_time: f32) {        
         let screen_width = extent.width as f32;
         let screen_height = extent.height as f32;
         let ubo = UniformBufferObject {
@@ -255,11 +346,10 @@ impl TutorialApp {
             proj: Mat4::perspective(0.785, screen_width / screen_height, 0.1, 10.0),
         };
 
-        swap_context.uniform_buffers[image_index].map_memory(&[ubo]);
+        buffer.map_memory(&[ubo]);
     }
 
-    fn create_descriptor_pool(context: &VkContext) -> VkDescriptorPool {
-        let count = context.swap_chain.image_count;
+    fn create_descriptor_pool(context: &VkContext, count: u32) -> VkDescriptorPool {
         let ubo_pool_size = vk::DescriptorPoolSize::builder()
             .ty(vk::DescriptorType::UNIFORM_BUFFER)
             .descriptor_count(count);
@@ -343,11 +433,11 @@ impl TutorialApp {
         descriptor_sets
     }
 
-    fn create_texture_image(context: &VkContext) -> VkTexture {
+    fn create_texture_image(context: &VkContext, command_pool: &VkCommandPool) -> VkTexture {
         VkImage::load_texture(
             &context.device,
             "assets/texture.jpg",
-            &context.command_pool,
+            &command_pool,
             context.device.graphics_queue, // TODO: Use transfer queue
         )
     }
@@ -369,7 +459,9 @@ impl TutorialApp {
             None => return,
         };
 
-        for (index, &buffer) in context.command_buffers.iter().enumerate() {
+        let swap_chain = &swap_context.swap_chain;
+        for (index, swap_image) in swap_chain.images.iter().enumerate() {
+            let buffer = swap_image.command_buffer;
             let command_begin_info = vk::CommandBufferBeginInfo::builder();
             unsafe {
                 device
@@ -392,11 +484,11 @@ impl TutorialApp {
             ];
 
             let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
-                .render_pass(context.render_pass.handle)
-                .framebuffer(context.swap_chain.framebuffers[index])
+                .render_pass(self.render_pass.handle)
+                .framebuffer(swap_image.framebuffer)
                 .render_area(vk::Rect2D {
                     offset: vk::Offset2D { x: 0, y: 0 },
-                    extent: context.swap_chain.extent,
+                    extent: swap_chain.extent,
                 })
                 .clear_values(&clear_values);
 
@@ -438,48 +530,6 @@ impl TutorialApp {
             };
         }
     }
-
-    // TODO Move to swap chain sync
-    fn acquire_image(&mut self, window: &Window) -> Option<usize> {
-        let context = &self.vk_context;
-        let sync = &mut self.swap_chain_sync;
-        let device = &context.device.handle;
-
-        let current_frame = sync.current_frame;
-        let sync_fences = &sync.in_flight_fences;
-        let fence = &sync_fences[current_frame];
-
-        unsafe {
-            let fences = [fence.handle];
-            device
-                .wait_for_fences(&fences, true, std::u64::MAX)
-                .expect("Waiting for fence failed");
-        }
-
-        let acquire_result = context
-            .swap_chain
-            .acquire_next_image(&sync.image_available_semaphore[current_frame]);
-        let image_index = match acquire_result {
-            Ok((index, _)) => index as usize,
-            Err(_) => {
-                self.recreate_swap_chain(window.inner_size());
-                return None;
-            }
-        };
-
-        if let Some(fence_index) = sync.images_in_flight[image_index] {
-            unsafe {
-                let fences = [sync_fences[fence_index].handle];
-                device
-                    .wait_for_fences(&fences, true, std::u64::MAX)
-                    .expect("Waiting for fence failed");
-            }
-        }
-
-        sync.images_in_flight[image_index] = Some(current_frame);
-
-        Some(image_index)
-    }
 }
 
 impl App for TutorialApp {
@@ -496,25 +546,58 @@ impl App for TutorialApp {
     fn minimized(&mut self, _window: &Window) {}
 
     fn draw_frame(&mut self, window: &Window) {
-        let image_index = match self.acquire_image(window) {
-            Some(index) => index,
+        let swap_context = match &mut self.swap_chain_context {
+            Some(context) => context,
             None => return,
         };
 
-        let current_frame = self.swap_chain_sync.current_frame;
-        let fence = &self.swap_chain_sync.in_flight_fences[current_frame];
-        let elapsed_time = self.start_time.elapsed().as_secs_f32();
-        self.update_uniform_buffer(image_index, elapsed_time);
-
+        let current_frame = swap_context.current_frame;
+        let swap_chain = &mut swap_context.swap_chain;
         let context = &self.vk_context;
-        let device = &context.device.handle;
+        let device = &context.device.handle;        
 
+        let swap_frame = &swap_chain.frames[current_frame];
+        let fence = &swap_frame.in_flight;
+
+        unsafe {
+            let fences = [fence.handle];
+            device
+                .wait_for_fences(&fences, true, std::u64::MAX)
+                .expect("Waiting for fence failed");
+        }
+
+        let acquire_result = swap_chain
+            .acquire_next_image(&swap_frame.available);
+        let image_index = match acquire_result {
+            Ok((index, _)) => index as usize,
+            Err(_) => {
+                self.recreate_swap_chain(window.inner_size());
+                return;
+            }
+        };
+
+        let swap_image = &mut swap_chain.images[image_index];
+        if let Some(image_frame) = swap_image.frame {
+            unsafe {
+                let fences = [swap_chain.frames[image_frame].in_flight.handle];
+                device
+                    .wait_for_fences(&fences, true, std::u64::MAX)
+                    .expect("Waiting for fence failed");
+            }
+        }
+
+        swap_image.frame = Some(current_frame);
+        
+        let fence = &swap_frame.in_flight;
+        let elapsed_time = self.start_time.elapsed().as_secs_f32();
+        Self::update_uniform_buffer(&swap_context.uniform_buffers[image_index], swap_chain.extent, elapsed_time);
+        
         let wait_semaphores =
-            [self.swap_chain_sync.image_available_semaphore[current_frame].handle];
+            [swap_frame.available.handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-        let command_buffers = [context.command_buffers[image_index as usize]];
+        let command_buffers = [swap_image.command_buffer];
         let signal_semaphores =
-            [self.swap_chain_sync.render_finished_semaphore[current_frame].handle];
+            [swap_frame.finished.handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)
             .wait_dst_stage_mask(&wait_stages)
@@ -530,7 +613,8 @@ impl App for TutorialApp {
                 .expect("Unable to submit queue")
         };
 
-        let swapchains = [context.swap_chain.handle];
+        // TODO Move to method SwapChain.present
+        let swapchains = [swap_chain.handle];
         let images_indices = [image_index as u32];
 
         let present_info = vk::PresentInfoKHR::builder()
@@ -540,13 +624,12 @@ impl App for TutorialApp {
             .build();
 
         let result = unsafe {
-            context
-                .swap_chain
+            swap_chain
                 .extension
                 .queue_present(context.device.presentation_queue, &present_info)
         };
 
-        self.swap_chain_sync.advance_frame();
+        swap_context.current_frame = swap_chain.advance_frame(current_frame);
 
         match result {
             Ok(true) | Err(_) => {

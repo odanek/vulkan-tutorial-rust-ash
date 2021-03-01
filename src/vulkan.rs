@@ -16,7 +16,6 @@ mod settings;
 mod shader;
 mod surface;
 mod swap_chain;
-mod swap_chain_sync;
 mod utils;
 mod version;
 
@@ -29,7 +28,8 @@ pub use device::VkDevice;
 pub use fence::VkFence;
 pub use physical_device::VkPhysicalDevice;
 pub use pipeline::VkPipeline;
+pub use render_pass::VkRenderPass;
 pub use settings::VkSettings;
 pub use shader::VkShaderModule;
+pub use surface::VkSurface;
 pub use swap_chain::VkSwapChain;
-pub use swap_chain_sync::VkSwapChainSync;

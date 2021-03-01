@@ -4,18 +4,23 @@ use ash::{
     extensions::khr::Swapchain,
     prelude::VkResult,
     version::DeviceV1_0,
-    vk::{self, SwapchainKHR},
+    vk,
 };
 
-use super::{VkFence, VkImage, VkTexture, device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
+use super::{
+    device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface,
+    VkCommandPool, VkFence, VkImage, VkTexture,
+};
 
 pub struct VkSwapChainImage {
+    device: Arc<VkDevice>,
     pub image: vk::Image,
     pub view: vk::ImageView,
-    pub framebuffer: vk::Framebuffer,
     pub color_image: VkTexture,
     pub depth_image: VkTexture,
+    pub framebuffer: vk::Framebuffer,
     pub frame: Option<usize>,
+    pub command_buffer: vk::CommandBuffer,
 }
 
 pub struct VkFrame {
@@ -26,31 +31,26 @@ pub struct VkFrame {
 
 pub struct VkSwapChain {
     device: Arc<VkDevice>,
-    pub handle: SwapchainKHR,
+    pub handle: vk::SwapchainKHR,
     pub extension: Swapchain,
     pub format: vk::SurfaceFormatKHR,
     pub present_mode: vk::PresentModeKHR,
-    pub extent: vk::Extent2D,    
-
-    pub image_count: u32,
-    pub images: Vec<vk::Image>,
-    pub image_views: Vec<vk::ImageView>,
-    pub framebuffers: Vec<vk::Framebuffer>,
-
-    // pub images: Vec<VkSwapChainImage>,
-    // pub frames: Vec<VkFrame>,
+    pub extent: vk::Extent2D,
+    pub images: Vec<VkSwapChainImage>,
+    pub frames: Vec<VkFrame>,
 }
 
 impl VkSwapChain {
-    pub fn new(device: &Arc<VkDevice>, surface: &VkSurface, dimensions: &[u32; 2]/*, max_frames: u32*/) -> VkSwapChain {
+    pub fn new(
+        device: &Arc<VkDevice>,
+        surface: &VkSurface,
+        format: vk::SurfaceFormatKHR,
+        present_mode: vk::PresentModeKHR,
+        image_count: u32,
+        dimensions: &[u32; 2],
+    ) -> VkSwapChain {
         let surface_caps =
             surface.get_physical_device_surface_capabilities(&device.physical_device);
-
-        // TODO: These are constant when resolution changes
-        let format = choose_swapchain_surface_format(&surface_caps.formats);
-        log::info!("Choosing swap-chain image format: {:?}", format);
-        let present_mode = choose_swapchain_surface_present_mode(&surface_caps.present_modes);
-        log::info!("Choosing swap-chain presentation mode: {:?}", present_mode);
 
         let extent = choose_swapchain_extent(surface_caps.capabilities, dimensions);
         log::info!(
@@ -58,8 +58,6 @@ impl VkSwapChain {
             extent,
             dimensions
         );
-        let image_count = choose_image_count(&surface_caps.capabilities);
-        log::info!("Choosing swap-chain image count: {}", image_count);
 
         // TODO: This changes with resolution
         let mut create_info = vk::SwapchainCreateInfoKHR::builder()
@@ -94,56 +92,124 @@ impl VkSwapChain {
                 .expect("Unable to create swap chain")
         };
 
-        log::info!("Creating images and image views");
-        let images = unsafe {
-            extension
-                .get_swapchain_images(handle)
-                .expect("Unable to get swap chain images")
-        };
-        let image_views = create_image_views(device, &images, format.format);
-
         VkSwapChain {
             device: Arc::clone(device),
             format,
             present_mode,
             extent,
-            image_count,
             extension,
             handle,
-            images,
-            image_views,
-            framebuffers: Vec::new(),
+            images: Vec::new(),
+            frames: Vec::new(),
         }
     }
 
-    pub fn create_frame_buffers(
-        &mut self,
-        render_pass: &VkRenderPass,
-        depth_texture: &VkTexture,
-        color_image: &VkTexture,
-    ) {
-        log::info!("Creating framebuffers");
+    pub fn image_count(&self) -> usize {
+        return self.images.len();
+    }
 
-        self.framebuffers = self
-            .image_views
-            .iter()
-            .map(|view| [color_image.view, depth_texture.view, *view])
-            .map(|attachments| {
-                let framebuffer_info = vk::FramebufferCreateInfo::builder()
-                    .render_pass(render_pass.handle)
-                    .attachments(&attachments)
-                    .width(self.extent.width)
-                    .height(self.extent.height)
-                    .layers(1)
-                    .build();
-                unsafe {
-                    self.device
-                        .handle
-                        .create_framebuffer(&framebuffer_info, None)
-                        .expect("Unable to create framebuffer")
-                }
-            })
-            .collect::<Vec<_>>();
+    pub fn frame_count(&self) -> usize {
+        return self.frames.len();
+    }
+
+    pub fn advance_frame(&self, frame: usize) -> usize {
+        (frame + 1) % self.frame_count()
+    }
+
+    pub fn initialize_images(
+        &mut self,
+        max_frames: usize,
+        render_pass: &VkRenderPass,
+        depth_format: vk::Format,
+        msaa_samples: vk::SampleCountFlags,
+        command_pool: &VkCommandPool,
+        transfer_queue: vk::Queue,
+    ) {
+        log::info!("Creating swap-chain images");
+        let images = unsafe {
+            self.extension
+                .get_swapchain_images(self.handle)
+                .expect("Unable to get swap chain images")
+        };
+
+        for &image in images.iter() {
+            let color_format = self.format.format;
+
+            let view = VkImage::create_image_view(
+                &self.device,
+                image,
+                1,
+                color_format,
+                vk::ImageAspectFlags::COLOR,
+            );
+
+            let color_image =
+                VkImage::create_color_image(&self.device, color_format, self.extent, msaa_samples);
+
+            let depth_image = VkImage::create_depth_image(
+                &self.device,
+                &command_pool,
+                transfer_queue,
+                depth_format,
+                self.extent,
+                msaa_samples,
+            );
+
+            let framebuffer =
+                self.create_frame_buffer(view, render_pass, &depth_image, &color_image);
+            let command_buffer = command_pool.create_command_buffers(1)[0]; // TODO: Release in Drop
+
+            let swap_image = VkSwapChainImage {
+                device: Arc::clone(&self.device),
+                image,
+                view,
+                color_image,
+                depth_image,
+                framebuffer,
+                frame: None,
+                command_buffer,
+            };
+
+            self.images.push(swap_image);
+        }
+
+        let frame_count = max_frames.min(images.len());
+        for index in 0..frame_count {
+            let available = VkSemaphore::new(&self.device);
+            let finished = VkSemaphore::new(&self.device);
+            let in_flight = VkFence::new(&self.device);
+    
+            let frame = VkFrame {
+                available,
+                finished,
+                in_flight
+            };
+
+            self.frames.push(frame);
+        }
+    }
+
+    pub fn create_frame_buffer(
+        &self,
+        view: vk::ImageView,
+        render_pass: &VkRenderPass,
+        depth_image: &VkTexture,
+        color_image: &VkTexture,
+    ) -> vk::Framebuffer {
+        let attachments = [color_image.view, depth_image.view, view];
+        let framebuffer_info = vk::FramebufferCreateInfo::builder()
+            .render_pass(render_pass.handle)
+            .attachments(&attachments)
+            .width(self.extent.width)
+            .height(self.extent.height)
+            .layers(1)
+            .build();
+        unsafe {
+            self.device
+                .handle
+                .create_framebuffer(&framebuffer_info, None)
+                .expect("Unable to create framebuffer")
+        }
     }
 
     pub fn acquire_next_image(&self, semaphore: &VkSemaphore) -> VkResult<(u32, bool)> {
@@ -157,49 +223,33 @@ impl VkSwapChain {
         }
     }
 
-    pub fn cleanup(&self, device: &VkDevice) {
-        log::debug!("Dropping swap chain image views");
-        for &view in self.image_views.iter() {
-            unsafe { device.handle.destroy_image_view(view, None) };
-        }
-        log::debug!("Dropping swap chain");
-        unsafe {
-            self.extension.destroy_swapchain(self.handle, None);
-        }
-    }
-
-    pub fn cleanup_framebuffers(&mut self, device: &VkDevice) {
-        log::debug!("Dropping framebuffers");
-        for &buffer in self.framebuffers.iter() {
-            unsafe { device.handle.destroy_framebuffer(buffer, None) };
-        }
-        self.framebuffers.clear();
+    pub fn cleanup_images(&mut self) {
+        log::debug!("Dropping swap chain images");
+        self.images.clear();
     }
 
     // TODO: Resize method
 }
 
-fn choose_swapchain_surface_format(
-    available_formats: &[vk::SurfaceFormatKHR],
-) -> vk::SurfaceFormatKHR {
-    *available_formats
-        .iter()
-        .find(|format| {
-            format.format == vk::Format::B8G8R8A8_UNORM
-                && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR
-        })
-        .unwrap_or(&available_formats[0])
+impl Drop for VkSwapChainImage {
+    fn drop(&mut self) {
+        unsafe { self.device.handle.destroy_image_view(self.view, None) };
+        unsafe {
+            self.device
+                .handle
+                .destroy_framebuffer(self.framebuffer, None)
+        };
+    }
 }
 
-fn choose_swapchain_surface_present_mode(
-    available_present_modes: &[vk::PresentModeKHR],
-) -> vk::PresentModeKHR {
-    if available_present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
-        vk::PresentModeKHR::MAILBOX
-    } else if available_present_modes.contains(&vk::PresentModeKHR::FIFO) {
-        vk::PresentModeKHR::FIFO
-    } else {
-        vk::PresentModeKHR::IMMEDIATE
+impl Drop for VkSwapChain {
+    fn drop(&mut self) {
+        log::debug!("Dropping swap chain");
+        self.images.clear();
+        self.frames.clear();
+        unsafe {
+            self.extension.destroy_swapchain(self.handle, None);
+        }
     }
 }
 
@@ -216,26 +266,4 @@ fn choose_swapchain_extent(
     let width = dimensions[0].min(max.width).max(min.width);
     let height = dimensions[1].min(max.height).max(min.height);
     vk::Extent2D { width, height }
-}
-
-fn choose_image_count(capabilities: &vk::SurfaceCapabilitiesKHR) -> u32 {
-    let max = capabilities.max_image_count;
-    let mut preferred = capabilities.min_image_count + 1;
-    if max > 0 && preferred > max {
-        preferred = max;
-    }
-    preferred
-}
-
-fn create_image_views(
-    device: &VkDevice,
-    images: &[vk::Image],
-    format: vk::Format,
-) -> Vec<vk::ImageView> {
-    images
-        .iter()
-        .map(|&image| {
-            VkImage::create_image_view(device, image, 1, format, vk::ImageAspectFlags::COLOR)
-        })
-        .collect::<Vec<_>>()
 }
