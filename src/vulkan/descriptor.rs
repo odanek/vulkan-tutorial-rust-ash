@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ash::{version::DeviceV1_0, vk};
+use ash::{version::DeviceV1_0, vk::{self, DescriptorPoolResetFlags}};
 
 use super::VkDevice;
 
@@ -60,6 +60,26 @@ impl VkDescriptorPool {
         VkDescriptorPool {
             device: Arc::clone(device),
             handle,
+        }
+    }
+
+    pub fn create_descriptor_sets(&self, layout: &VkDescriptorSetLayout, count: usize) -> Vec<vk::DescriptorSet> {
+        let layouts = (0..count).map(|_| layout.handle).collect::<Vec<_>>();
+        let alloc_info = vk::DescriptorSetAllocateInfo::builder()
+            .descriptor_pool(self.handle)
+            .set_layouts(&layouts)
+            .build();
+        unsafe {
+            self.device
+                .handle
+                .allocate_descriptor_sets(&alloc_info)
+                .expect("Unable to create descriptor sets")
+        }
+    }
+
+    pub fn reset_descriptor_sets(&self) {
+        unsafe {
+            self.device.handle.reset_descriptor_pool(self.handle, vk::DescriptorPoolResetFlags::empty());
         }
     }
 }

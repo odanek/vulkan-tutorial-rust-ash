@@ -264,6 +264,7 @@ impl TutorialApp {
 
     fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
         self.vk_context.device.wait_idle();
+        self.destroy_descriptor_sets(); // TODO DO automatically
         self.swap_chain_context = None;
         self.create_swap_chain(size);
     }
@@ -375,17 +376,7 @@ impl TutorialApp {
         let count = uniform_buffers.len();
         log::info!("Creating {} descriptor sets", count);
 
-        let layouts = (0..count).map(|_| layout.handle).collect::<Vec<_>>();
-        let alloc_info = vk::DescriptorSetAllocateInfo::builder()
-            .descriptor_pool(pool.handle)
-            .set_layouts(&layouts)
-            .build();
-        let descriptor_sets = unsafe {
-            device
-                .handle
-                .allocate_descriptor_sets(&alloc_info)
-                .expect("Unable to create descriptor sets")
-        };
+        let descriptor_sets = pool.create_descriptor_sets(layout, count);
 
         descriptor_sets
             .iter()
@@ -431,6 +422,10 @@ impl TutorialApp {
             });
 
         descriptor_sets
+    }
+
+    fn destroy_descriptor_sets(&self) {
+        self.descriptor_pool.reset_descriptor_sets();
     }
 
     fn create_texture_image(context: &VkContext, command_pool: &VkCommandPool) -> VkTexture {
