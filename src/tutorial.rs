@@ -104,8 +104,6 @@ impl TutorialApp {
         let msaa_samples = device.get_max_usable_sample_count();
         log::info!("Using {:?} MSAA samples", msaa_samples);
 
-        let window_size = window.inner_size();
-
         log::info!("Creating swap-chain command pool");
         let command_pool = VkCommandPool::new(&device, device.graphics_queue_family);
 

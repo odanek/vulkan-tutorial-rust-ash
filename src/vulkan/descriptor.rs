@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use ash::{version::DeviceV1_0, vk::{self, DescriptorPoolResetFlags}};
+use ash::{
+    version::DeviceV1_0,
+    vk::{self, DescriptorPoolResetFlags},
+};
 
 use super::VkDevice;
 
@@ -45,7 +48,11 @@ pub struct VkDescriptorPool {
 }
 
 impl VkDescriptorPool {
-    pub fn new(device: &Arc<VkDevice>, pool_sizes: &[vk::DescriptorPoolSize], count: u32) -> VkDescriptorPool {
+    pub fn new(
+        device: &Arc<VkDevice>,
+        pool_sizes: &[vk::DescriptorPoolSize],
+        count: u32,
+    ) -> VkDescriptorPool {
         let create_info = vk::DescriptorPoolCreateInfo::builder()
             .pool_sizes(&pool_sizes)
             .max_sets(count);
@@ -63,7 +70,11 @@ impl VkDescriptorPool {
         }
     }
 
-    pub fn create_descriptor_sets(&self, layout: &VkDescriptorSetLayout, count: usize) -> Vec<vk::DescriptorSet> {
+    pub fn create_descriptor_sets(
+        &self,
+        layout: &VkDescriptorSetLayout,
+        count: usize,
+    ) -> Vec<vk::DescriptorSet> {
         let layouts = (0..count).map(|_| layout.handle).collect::<Vec<_>>();
         let alloc_info = vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(self.handle)
@@ -79,7 +90,10 @@ impl VkDescriptorPool {
 
     pub fn reset_descriptor_sets(&self) {
         unsafe {
-            self.device.handle.reset_descriptor_pool(self.handle, vk::DescriptorPoolResetFlags::empty());
+            self.device
+                .handle
+                .reset_descriptor_pool(self.handle, vk::DescriptorPoolResetFlags::empty())
+                .expect("Resetting descriptor pool failed");
         }
     }
 }
