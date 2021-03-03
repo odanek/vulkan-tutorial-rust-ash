@@ -334,7 +334,7 @@ impl TutorialApp {
             .collect::<Vec<_>>()
     }
 
-    fn update_uniform_buffer(buffer: &VkBuffer, extent: vk::Extent2D, elapsed_time: f32) {        
+    fn update_uniform_buffer(buffer: &VkBuffer, extent: vk::Extent2D, elapsed_time: f32) {
         let screen_width = extent.width as f32;
         let screen_height = extent.height as f32;
         let ubo = UniformBufferObject {
@@ -549,20 +549,14 @@ impl App for TutorialApp {
         let current_frame = swap_context.current_frame;
         let swap_chain = &mut swap_context.swap_chain;
         let context = &self.vk_context;
-        let device = &context.device.handle;        
+        let device = &context.device;
 
         let swap_frame = &swap_chain.frames[current_frame];
         let fence = &swap_frame.in_flight;
 
-        unsafe {
-            let fences = [fence.handle];
-            device
-                .wait_for_fences(&fences, true, std::u64::MAX)
-                .expect("Waiting for fence failed");
-        }
+        device.wait_for_fences(&[fence]);
 
-        let acquire_result = swap_chain
-            .acquire_next_image(&swap_frame.available);
+        let acquire_result = swap_chain.acquire_next_image(&swap_frame.available);
         let image_index = match acquire_result {
             Ok((index, _)) => index as usize,
             Err(_) => {
@@ -573,26 +567,24 @@ impl App for TutorialApp {
 
         let swap_image = &mut swap_chain.images[image_index];
         if let Some(image_frame) = swap_image.frame {
-            unsafe {
-                let fences = [swap_chain.frames[image_frame].in_flight.handle];
-                device
-                    .wait_for_fences(&fences, true, std::u64::MAX)
-                    .expect("Waiting for fence failed");
-            }
+            let in_flight_fence = &swap_chain.frames[image_frame].in_flight;
+            device.wait_for_fences(&[in_flight_fence]);
         }
 
         swap_image.frame = Some(current_frame);
-        
+
         let fence = &swap_frame.in_flight;
         let elapsed_time = self.start_time.elapsed().as_secs_f32();
-        Self::update_uniform_buffer(&swap_context.uniform_buffers[image_index], swap_chain.extent, elapsed_time);
-        
-        let wait_semaphores =
-            [swap_frame.available.handle];
+        Self::update_uniform_buffer(
+            &swap_context.uniform_buffers[image_index],
+            swap_chain.extent,
+            elapsed_time,
+        );
+
+        let wait_semaphores = [swap_frame.available.handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let command_buffers = [swap_image.command_buffer];
-        let signal_semaphores =
-            [swap_frame.finished.handle];
+        let signal_semaphores = [swap_frame.finished.handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)
             .wait_dst_stage_mask(&wait_stages)
@@ -600,32 +592,21 @@ impl App for TutorialApp {
             .signal_semaphores(&signal_semaphores);
         let infos = [submit_info.build()];
 
+        device.reset_fences(&[fence]);
         unsafe {
-            let fences = [fence.handle];
-            device.reset_fences(&fences).expect("Fence reset failed");
             device
+                .handle
                 .queue_submit(context.device.graphics_queue, &infos, fence.handle)
                 .expect("Unable to submit queue")
         };
 
-        // TODO Move to method SwapChain.present
-        let swapchains = [swap_chain.handle];
-        let images_indices = [image_index as u32];
-
-        let present_info = vk::PresentInfoKHR::builder()
-            .wait_semaphores(&signal_semaphores)
-            .swapchains(&swapchains)
-            .image_indices(&images_indices)
-            .build();
-
-        let result = unsafe {
-            swap_chain
-                .extension
-                .queue_present(context.device.presentation_queue, &present_info)
-        };
-
         swap_context.current_frame = swap_chain.advance_frame(current_frame);
 
+        let result = swap_chain.present_image(
+            device.presentation_queue,
+            image_index as _,
+            &[&swap_frame.finished],
+        );
         match result {
             Ok(true) | Err(_) => {
                 self.recreate_swap_chain(window.inner_size());

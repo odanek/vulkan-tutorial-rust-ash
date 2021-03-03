@@ -223,6 +223,22 @@ impl VkSwapChain {
         }
     }
 
+    pub fn present_image(&self, queue: vk::Queue, index: u32, semaphores: &[&VkSemaphore]) -> VkResult<bool> {
+        let swapchains = [self.handle];    
+        let semaphore_handles = semaphores.iter().map(|semaphore| semaphore.handle).collect::<Vec<_>>();
+        let image_indices = [index];
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&semaphore_handles)
+            .swapchains(&swapchains)
+            .image_indices(&image_indices);
+
+        unsafe {
+            self
+                .extension
+                .queue_present(queue, &present_info)
+        }
+    }
+
     pub fn cleanup_images(&mut self) {
         log::debug!("Dropping swap chain images");
         self.images.clear();

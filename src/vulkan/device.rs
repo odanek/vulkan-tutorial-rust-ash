@@ -4,6 +4,7 @@ use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
 
 use super::{
     physical_device::VkPhysicalDevice, queue_family::VkQueueFamily, surface::VkSurface, utils,
+    VkFence,
 };
 
 pub struct VkDevice {
@@ -101,6 +102,27 @@ impl VkDevice {
                 .device_wait_idle()
                 .expect("Failed to wait device idle!")
         };
+    }
+
+    pub fn wait_for_fences(&self, fences: &[&VkFence]) {
+        // TODO Trait RawHandle? and extension on array
+        let fence_handles = fences.iter().map(|fence| fence.handle).collect::<Vec<_>>();
+
+        unsafe {
+            self.handle
+                .wait_for_fences(&fence_handles, true, std::u64::MAX)
+                .expect("Waiting for fence failed");
+        }
+    }
+
+    pub fn reset_fences(&self, fences: &[&VkFence]) {
+        let fence_handles = fences.iter().map(|fence| fence.handle).collect::<Vec<_>>();
+        unsafe {
+            self
+                .handle
+                .reset_fences(&fence_handles)
+                .expect("Fence reset failed");
+        }
     }
 
     pub fn get_mem_properties(&self) -> vk::PhysicalDeviceMemoryProperties {
