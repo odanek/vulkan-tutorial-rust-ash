@@ -7,7 +7,7 @@ use ash::{
     vk,
 };
 
-use super::{VkCommandPool, VkFence, VkImage, VkTexture, device::VkDevice, raw_handle::to_raw_handles, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
+use super::{VkCommandPool, VkCommandBuffer, VkFence, VkImage, VkTexture, device::VkDevice, raw_handle::to_raw_handles, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
 
 pub struct VkSwapChainImage {
     device: Arc<VkDevice>,
@@ -17,7 +17,7 @@ pub struct VkSwapChainImage {
     pub depth_image: VkTexture,
     pub framebuffer: vk::Framebuffer,
     pub frame: Option<usize>,
-    pub command_buffer: vk::CommandBuffer,
+    pub command_buffer: VkCommandBuffer,
 }
 
 pub struct VkFrame {
@@ -119,7 +119,7 @@ impl VkSwapChain {
         render_pass: &VkRenderPass,
         depth_format: vk::Format,
         msaa_samples: vk::SampleCountFlags,
-        command_pool: &VkCommandPool,
+        command_pool: &Arc<VkCommandPool>,
         transfer_queue: vk::Queue,
     ) {
         log::info!("Creating swap-chain images");
@@ -154,7 +154,7 @@ impl VkSwapChain {
 
             let framebuffer =
                 self.create_frame_buffer(view, render_pass, &depth_image, &color_image);
-            let command_buffer = command_pool.create_command_buffers(1)[0]; // TODO: How to release this automatically?
+            let command_buffer = VkCommandBuffer::new(command_pool, true);
 
             let swap_image = VkSwapChainImage {
                 device: Arc::clone(&self.device),

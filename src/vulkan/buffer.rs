@@ -31,7 +31,7 @@ impl VkBuffer {
 
     pub fn new_device_local<T: Copy>(
         device: &Arc<VkDevice>,
-        command_pool: &VkCommandPool,
+        command_pool: &Arc<VkCommandPool>,
         queue: vk::Queue,
         usage: vk::BufferUsageFlags,
         data: &[T],
@@ -55,7 +55,7 @@ impl VkBuffer {
         );
 
         log::info!("Copying buffer data");
-        VkBuffer::copy(&staging_buffer, &buffer, command_pool, queue);
+        device.copy_buffer(&staging_buffer, &buffer, command_pool, queue);
 
         buffer
     }
@@ -71,22 +71,7 @@ impl VkBuffer {
             align.copy_from_slice(data);
             self.device.handle.unmap_memory(self.memory);
         }
-    }
-
-    pub fn copy(src: &VkBuffer, dst: &VkBuffer, command_pool: &VkCommandPool, queue: vk::Queue) {
-        command_pool.execute_one_time_commands(queue, |device, command_buffer| {
-            unsafe {
-                let regions = [vk::BufferCopy {
-                    src_offset: 0,
-                    dst_offset: 0,
-                    size: src.size,
-                }];
-                device
-                    .handle
-                    .cmd_copy_buffer(command_buffer, src.handle, dst.handle, &regions);
-            }    
-        });
-    }
+    }    
 }
 
 impl Drop for VkBuffer {

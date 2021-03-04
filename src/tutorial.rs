@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use crate::{
     app::App,
@@ -88,7 +88,7 @@ pub struct TutorialApp {
     swap_chain_format: vk::SurfaceFormatKHR,
     swap_chain_present_mode: vk::PresentModeKHR,
     swap_image_count: u32,
-    command_pool: VkCommandPool,
+    command_pool: Arc<VkCommandPool>,
     depth_format: vk::Format,
     msaa_samples: vk::SampleCountFlags,
     window_size: PhysicalSize<u32>,
@@ -105,7 +105,7 @@ impl TutorialApp {
         log::info!("Using {:?} MSAA samples", msaa_samples);
 
         log::info!("Creating swap-chain command pool");
-        let command_pool = VkCommandPool::new(&device, device.graphics_queue_family);
+        let command_pool = Arc::new(VkCommandPool::new(&device, device.graphics_queue_family));
 
         let depth_format = VkImage::find_depth_format(&vk_context.physical_device);
         log::info!("Choosing depth format {:?}", depth_format);
@@ -262,6 +262,7 @@ impl TutorialApp {
     fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
         self.vk_context.device.wait_idle();
         self.destroy_descriptor_sets();
+        self.swap_chain_context = None;
         self.swap_chain_context = Some(self.create_swap_chain(size));
         self.record_commands();
     }
@@ -295,7 +296,7 @@ impl TutorialApp {
         )
     }
 
-    fn create_vertex_buffer(context: &VkContext, command_pool: &VkCommandPool) -> VkBuffer {
+    fn create_vertex_buffer(context: &VkContext, command_pool: &Arc<VkCommandPool>) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
             &command_pool,
@@ -305,7 +306,7 @@ impl TutorialApp {
         )
     }
 
-    fn create_index_buffer(context: &VkContext, command_pool: &VkCommandPool) -> VkBuffer {
+    fn create_index_buffer(context: &VkContext, command_pool: &Arc<VkCommandPool>) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
             &command_pool,
@@ -425,7 +426,7 @@ impl TutorialApp {
         self.descriptor_pool.reset_descriptor_sets();
     }
 
-    fn create_texture_image(context: &VkContext, command_pool: &VkCommandPool) -> VkTexture {
+    fn create_texture_image(context: &VkContext, command_pool: &Arc<VkCommandPool>) -> VkTexture {
         VkImage::load_texture(
             &context.device,
             "assets/texture.jpg",
@@ -453,11 +454,11 @@ impl TutorialApp {
 
         let swap_chain = &swap_context.swap_chain;
         for (index, swap_image) in swap_chain.images.iter().enumerate() {
-            let buffer = swap_image.command_buffer;
+            let buffer = &swap_image.command_buffer;
             let command_begin_info = vk::CommandBufferBeginInfo::builder();
             unsafe {
                 device
-                    .begin_command_buffer(buffer, &command_begin_info)
+                    .begin_command_buffer(buffer.handle, &command_begin_info)
                     .expect("Unable to begin command buffer")
             };
 
@@ -486,38 +487,38 @@ impl TutorialApp {
 
             unsafe {
                 device.cmd_begin_render_pass(
-                    buffer,
+                    buffer.handle,
                     &render_pass_begin_info,
                     vk::SubpassContents::INLINE,
                 );
 
                 device.cmd_bind_pipeline(
-                    buffer,
+                    buffer.handle,
                     vk::PipelineBindPoint::GRAPHICS,
                     swap_context.pipeline.handle,
                 );
 
                 let buffers = [self.vertex_buffer.handle];
                 let offsets = [0 as vk::DeviceSize];
-                device.cmd_bind_vertex_buffers(buffer, 0, &buffers, &offsets);
+                device.cmd_bind_vertex_buffers(buffer.handle, 0, &buffers, &offsets);
                 device.cmd_bind_index_buffer(
-                    buffer,
+                    buffer.handle,
                     self.index_buffer.handle,
                     0,
                     vk::IndexType::UINT16,
                 );
                 device.cmd_bind_descriptor_sets(
-                    buffer,
+                    buffer.handle,
                     vk::PipelineBindPoint::GRAPHICS,
                     swap_context.pipeline.layout,
                     0,
                     &swap_context.descriptor_sets[index..=index],
                     &[],
                 );
-                device.cmd_draw_indexed(buffer, INDICES.len() as u32, 1, 0, 0, 0);
-                device.cmd_end_render_pass(buffer);
+                device.cmd_draw_indexed(buffer.handle, INDICES.len() as u32, 1, 0, 0, 0);
+                device.cmd_end_render_pass(buffer.handle);
                 device
-                    .end_command_buffer(buffer)
+                    .end_command_buffer(buffer.handle)
                     .expect("Failed to record end of command buffer");
             };
         }
@@ -580,7 +581,7 @@ impl App for TutorialApp {
 
         let wait_semaphores = [swap_frame.available.handle];
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-        let command_buffers = [swap_image.command_buffer];
+        let command_buffers = [swap_image.command_buffer.handle];
         let signal_semaphores = [swap_frame.finished.handle];
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&wait_semaphores)

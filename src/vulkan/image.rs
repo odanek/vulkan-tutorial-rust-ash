@@ -80,7 +80,7 @@ impl VkImage {
     pub fn load_texture(
         device: &Arc<VkDevice>,
         path: &str,
-        command_pool: &VkCommandPool,
+        command_pool: &Arc<VkCommandPool>,
         transfer_queue: vk::Queue
     ) -> VkTexture {
         let mut buf = Vec::new();
@@ -126,6 +126,7 @@ impl VkImage {
         );
 
         transition_image_layout(
+            device,
             command_pool,
             transfer_queue,
             &image,
@@ -136,6 +137,7 @@ impl VkImage {
         );
 
         copy_buffer_to_image(
+            device,
             command_pool,
             transfer_queue,
             &staging_buffer,
@@ -169,7 +171,7 @@ impl VkImage {
 
     pub fn create_depth_image(
         device: &Arc<VkDevice>,
-        command_pool: &VkCommandPool,
+        command_pool: &Arc<VkCommandPool>,
         transfer_queue: vk::Queue,
         format: vk::Format,
         extent: vk::Extent2D,
@@ -191,6 +193,7 @@ impl VkImage {
         );
 
         transition_image_layout(
+            device,
             command_pool,
             transfer_queue,
             &image,
@@ -376,7 +379,8 @@ impl Drop for VkSampler {
 }
 
 fn transition_image_layout(
-    command_pool: &VkCommandPool,
+    device: &VkDevice,
+    command_pool: &Arc<VkCommandPool>,
     transition_queue: vk::Queue,
     image: &VkImage,
     mip_levels: u32,
@@ -384,7 +388,7 @@ fn transition_image_layout(
     old_layout: vk::ImageLayout,
     new_layout: vk::ImageLayout,
 ) {
-    command_pool.execute_one_time_commands(transition_queue, |device, buffer| {
+    device.execute_one_time_commands(command_pool, transition_queue, |device, buffer| {
         let (src_access_mask, src_stage) = match old_layout {
             vk::ImageLayout::UNDEFINED => (
                 vk::AccessFlags::empty(),
@@ -448,7 +452,7 @@ fn transition_image_layout(
 
         unsafe {
             device.handle.cmd_pipeline_barrier(
-                buffer,
+                buffer.handle,
                 src_stage,
                 dst_stage,
                 vk::DependencyFlags::empty(),
@@ -461,13 +465,14 @@ fn transition_image_layout(
 }
 
 fn copy_buffer_to_image(    
-    command_pool: &VkCommandPool,
+    device: &VkDevice,
+    command_pool: &Arc<VkCommandPool>,
     transition_queue: vk::Queue,
     buffer: &VkBuffer,
     image: &VkImage,
     extent: vk::Extent3D,
 ) {
-    command_pool.execute_one_time_commands(transition_queue, |device, command_buffer| {
+    device.execute_one_time_commands(command_pool, transition_queue, |device, command_buffer| {
         let region = vk::BufferImageCopy::builder()
             .buffer_offset(0)
             .buffer_row_length(0)
@@ -488,7 +493,7 @@ fn copy_buffer_to_image(
         let regions = [region];
         unsafe {
             device.handle.cmd_copy_buffer_to_image(
-                command_buffer,
+                command_buffer.handle,
                 buffer.handle,
                 image.handle,
                 vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -500,7 +505,7 @@ fn copy_buffer_to_image(
 
 fn generate_mipmaps(
     device: &VkDevice,
-    command_pool: &VkCommandPool,
+    command_pool: &Arc<VkCommandPool>,
     transfer_queue: vk::Queue,
     image: &VkImage,
     extent: vk::Extent3D,
@@ -515,7 +520,7 @@ fn generate_mipmaps(
         panic!("Linear blitting is not supported for format {:?}.", format)
     }
 
-    command_pool.execute_one_time_commands(transfer_queue, |device, buffer| {
+    device.execute_one_time_commands(command_pool, transfer_queue, |device, buffer| {
         let mut barrier = vk::ImageMemoryBarrier::builder()
             .image(image.handle)
             .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
@@ -552,7 +557,7 @@ fn generate_mipmaps(
 
             unsafe {
                 device.handle.cmd_pipeline_barrier(
-                    buffer,
+                    buffer.handle,
                     vk::PipelineStageFlags::TRANSFER,
                     vk::PipelineStageFlags::TRANSFER,
                     vk::DependencyFlags::empty(),
@@ -596,7 +601,7 @@ fn generate_mipmaps(
 
             unsafe {
                 device.handle.cmd_blit_image(
-                    buffer,
+                    buffer.handle,
                     image.handle,
                     vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
                     image.handle,
@@ -614,7 +619,7 @@ fn generate_mipmaps(
 
             unsafe {
                 device.handle.cmd_pipeline_barrier(
-                    buffer,
+                    buffer.handle,
                     vk::PipelineStageFlags::TRANSFER,
                     vk::PipelineStageFlags::FRAGMENT_SHADER,
                     vk::DependencyFlags::empty(),
@@ -637,7 +642,7 @@ fn generate_mipmaps(
 
         unsafe {
             device.handle.cmd_pipeline_barrier(
-                buffer,
+                buffer.handle,
                 vk::PipelineStageFlags::TRANSFER,
                 vk::PipelineStageFlags::FRAGMENT_SHADER,
                 vk::DependencyFlags::empty(),

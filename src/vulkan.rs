@@ -22,7 +22,7 @@ mod version;
 
 pub use self::image::{VkImage, VkTexture, VkSampler};
 pub use buffer::VkBuffer;
-pub use command::VkCommandPool;
+pub use command::{VkCommandPool, VkCommandBuffer};
 pub use context::VkContext;
 pub use descriptor::{VkDescriptorPool, VkDescriptorSetLayout};
 pub use device::VkDevice;

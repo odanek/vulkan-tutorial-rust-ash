@@ -2,7 +2,10 @@ use std::{collections::HashSet, sync::Arc};
 
 use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
 
-use super::{VkFence, physical_device::VkPhysicalDevice, queue_family::VkQueueFamily, raw_handle::to_raw_handles, surface::VkSurface, utils};
+use super::{
+    command::VkCommandBuffer, physical_device::VkPhysicalDevice, queue_family::VkQueueFamily,
+    raw_handle::to_raw_handles, surface::VkSurface, utils, VkBuffer, VkCommandPool, VkFence,
+};
 
 pub struct VkDevice {
     pub physical_device: Arc<VkPhysicalDevice>,
@@ -113,8 +116,7 @@ impl VkDevice {
     pub fn reset_fences(&self, fences: &[&VkFence]) {
         let fence_handles = to_raw_handles(fences);
         unsafe {
-            self
-                .handle
+            self.handle
                 .reset_fences(&fence_handles)
                 .expect("Fence reset failed");
         }
@@ -138,6 +140,61 @@ impl VkDevice {
 
     pub fn get_max_usable_sample_count(&self) -> vk::SampleCountFlags {
         self.physical_device.get_max_usable_sample_count()
+    }
+
+    pub fn execute_one_time_commands(
+        &self,
+        pool: &Arc<VkCommandPool>,
+        queue: vk::Queue,
+        executor: impl FnOnce(&VkDevice, &VkCommandBuffer),
+    ) {
+        let command_buffer = VkCommandBuffer::new(pool, true);
+
+        let command_begin_info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        unsafe {
+            self.handle
+                .begin_command_buffer(command_buffer.handle, &command_begin_info)
+                .expect("Unable to begin command buffer")
+        };
+
+        // Execute user function
+        executor(self, &command_buffer);
+
+        unsafe {
+            self.handle
+                .end_command_buffer(command_buffer.handle)
+                .expect("Unable to end command buffer");
+
+            let command_buffers = [command_buffer.handle];
+            let submit_info = vk::SubmitInfo::builder().command_buffers(&command_buffers);
+            let infos = [submit_info.build()];
+            self.handle
+                .queue_submit(queue, &infos, vk::Fence::null())
+                .expect("Unable to submit queue");
+            self.handle
+                .queue_wait_idle(queue)
+                .expect("Unable to wait for queue idle state");
+        }
+    }
+
+    pub fn copy_buffer(
+        &self,
+        src: &VkBuffer,
+        dst: &VkBuffer,
+        command_pool: &Arc<VkCommandPool>,
+        queue: vk::Queue,
+    ) {
+        self.execute_one_time_commands(command_pool, queue, |device, command_buffer| unsafe {
+            let regions = [vk::BufferCopy {
+                src_offset: 0,
+                dst_offset: 0,
+                size: src.size,
+            }];
+            device
+                .handle
+                .cmd_copy_buffer(command_buffer.handle, src.handle, dst.handle, &regions);
+        });
     }
 }
 
