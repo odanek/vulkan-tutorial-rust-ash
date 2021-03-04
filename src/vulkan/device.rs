@@ -2,10 +2,7 @@ use std::{collections::HashSet, sync::Arc};
 
 use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
 
-use super::{
-    physical_device::VkPhysicalDevice, queue_family::VkQueueFamily, surface::VkSurface, utils,
-    VkFence,
-};
+use super::{VkFence, physical_device::VkPhysicalDevice, queue_family::VkQueueFamily, raw_handle::to_raw_handles, surface::VkSurface, utils};
 
 pub struct VkDevice {
     pub physical_device: Arc<VkPhysicalDevice>,
@@ -105,9 +102,7 @@ impl VkDevice {
     }
 
     pub fn wait_for_fences(&self, fences: &[&VkFence]) {
-        // TODO Trait RawHandle? and extension on array
-        let fence_handles = fences.iter().map(|fence| fence.handle).collect::<Vec<_>>();
-
+        let fence_handles = to_raw_handles(fences);
         unsafe {
             self.handle
                 .wait_for_fences(&fence_handles, true, std::u64::MAX)
@@ -116,7 +111,7 @@ impl VkDevice {
     }
 
     pub fn reset_fences(&self, fences: &[&VkFence]) {
-        let fence_handles = fences.iter().map(|fence| fence.handle).collect::<Vec<_>>();
+        let fence_handles = to_raw_handles(fences);
         unsafe {
             self
                 .handle

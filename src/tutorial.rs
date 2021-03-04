@@ -163,7 +163,8 @@ impl TutorialApp {
             vk_context,
             window_size,
         };
-        app.create_swap_chain(app.window_size);
+        app.swap_chain_context = Some(app.create_swap_chain(app.window_size));
+        app.record_commands();
 
         app
     }
@@ -217,7 +218,7 @@ impl TutorialApp {
         preferred
     }
 
-    fn create_swap_chain(&mut self, size: PhysicalSize<u32>) {
+    fn create_swap_chain(&mut self, size: PhysicalSize<u32>) -> TutorialAppSwapChainContext {
         log::info!("Creating swap-chain");
 
         let mut swap_chain = VkSwapChain::new(
@@ -249,22 +250,20 @@ impl TutorialApp {
             &self.sampler,
         );
 
-        self.swap_chain_context = Some(TutorialAppSwapChainContext {
+        TutorialAppSwapChainContext {
             swap_chain,
             current_frame: 0,
             pipeline,
             uniform_buffers,
             descriptor_sets,
-        });
-
-        self.record_commands();
+        }        
     }
 
     fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
         self.vk_context.device.wait_idle();
-        self.destroy_descriptor_sets(); // TODO DO automatically
-        self.swap_chain_context = None;
-        self.create_swap_chain(size);
+        self.destroy_descriptor_sets();
+        self.swap_chain_context = Some(self.create_swap_chain(size));
+        self.record_commands();
     }
 
     fn create_descriptor_set_layout(context: &VkContext) -> VkDescriptorSetLayout {

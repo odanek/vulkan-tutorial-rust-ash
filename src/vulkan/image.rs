@@ -190,7 +190,6 @@ impl VkImage {
             vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
         );
 
-        // TODO Probably not necessary
         transition_image_layout(
             command_pool,
             transfer_queue,

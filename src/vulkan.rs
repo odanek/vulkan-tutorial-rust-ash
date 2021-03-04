@@ -10,6 +10,7 @@ mod instance;
 mod physical_device;
 mod pipeline;
 mod queue_family;
+mod raw_handle;
 mod render_pass;
 mod semaphore;
 mod settings;

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ash::{version::DeviceV1_0, vk};
 
-use super::device::VkDevice;
+use super::{device::VkDevice, raw_handle::VkRawHandle};
 
 pub struct VkSemaphore {
     device: Arc<VkDevice>,
@@ -32,5 +32,13 @@ impl Drop for VkSemaphore {
         unsafe {
             self.device.handle.destroy_semaphore(self.handle, None);
         }
+    }
+}
+
+impl VkRawHandle for VkSemaphore {
+    type Handle = vk::Semaphore;
+
+    fn raw_handle(&self) -> Self::Handle {
+        self.handle
     }
 }

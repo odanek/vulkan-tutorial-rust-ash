@@ -7,10 +7,7 @@ use ash::{
     vk,
 };
 
-use super::{
-    device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface,
-    VkCommandPool, VkFence, VkImage, VkTexture,
-};
+use super::{VkCommandPool, VkFence, VkImage, VkTexture, device::VkDevice, raw_handle::to_raw_handles, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
 
 pub struct VkSwapChainImage {
     device: Arc<VkDevice>,
@@ -157,7 +154,7 @@ impl VkSwapChain {
 
             let framebuffer =
                 self.create_frame_buffer(view, render_pass, &depth_image, &color_image);
-            let command_buffer = command_pool.create_command_buffers(1)[0]; // TODO: Release in Drop
+            let command_buffer = command_pool.create_command_buffers(1)[0]; // TODO: How to release this automatically?
 
             let swap_image = VkSwapChainImage {
                 device: Arc::clone(&self.device),
@@ -174,7 +171,7 @@ impl VkSwapChain {
         }
 
         let frame_count = max_frames.min(images.len());
-        for index in 0..frame_count {
+        for _ in 0..frame_count {
             let available = VkSemaphore::new(&self.device);
             let finished = VkSemaphore::new(&self.device);
             let in_flight = VkFence::new(&self.device);
@@ -225,7 +222,7 @@ impl VkSwapChain {
 
     pub fn present_image(&self, queue: vk::Queue, index: u32, semaphores: &[&VkSemaphore]) -> VkResult<bool> {
         let swapchains = [self.handle];    
-        let semaphore_handles = semaphores.iter().map(|semaphore| semaphore.handle).collect::<Vec<_>>();
+        let semaphore_handles = to_raw_handles(semaphores);
         let image_indices = [index];
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(&semaphore_handles)
@@ -242,6 +239,7 @@ impl VkSwapChain {
     pub fn cleanup_images(&mut self) {
         log::debug!("Dropping swap chain images");
         self.images.clear();
+        self.frames.clear();
     }
 
     // TODO: Resize method
@@ -261,8 +259,7 @@ impl Drop for VkSwapChainImage {
 impl Drop for VkSwapChain {
     fn drop(&mut self) {
         log::debug!("Dropping swap chain");
-        self.images.clear();
-        self.frames.clear();
+        self.cleanup_images();
         unsafe {
             self.extension.destroy_swapchain(self.handle, None);
         }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ash::{version::DeviceV1_0, vk};
 
-use super::device::VkDevice;
+use super::{device::VkDevice, raw_handle::VkRawHandle};
 
 #[derive(Clone)]
 pub struct VkFence {
@@ -33,5 +33,13 @@ impl Drop for VkFence {
         unsafe {
             self.device.handle.destroy_fence(self.handle, None);
         }
+    }
+}
+
+impl VkRawHandle for VkFence {
+    type Handle = vk::Fence;
+
+    fn raw_handle(&self) -> Self::Handle {
+        self.handle
     }
 }
