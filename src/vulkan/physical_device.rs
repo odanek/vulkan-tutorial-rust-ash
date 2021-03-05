@@ -33,7 +33,7 @@ impl VkPhysicalDevice {
         let extensions = Self::get_required_device_extensions();
         let mut best_physical_device: Option<VkPhysicalDevice> = None;
         let mut best_score = -1;
-        for &handle in physical_devices.iter() {
+        for &handle in &physical_devices {
             let physical_device = create_physical_device(instance, handle);
             describe_device(&physical_device);
 
@@ -245,7 +245,7 @@ fn check_device_extension_support(
             .expect("Unable to query device extensions")
     };
 
-    for required in extensions.iter() {
+    for required in extensions {
         let found = extension_props.iter().any(|ext| {
             let name = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
             required == &name

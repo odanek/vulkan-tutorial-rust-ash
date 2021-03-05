@@ -3,27 +3,31 @@ use std::{
     os::raw::c_char,
 };
 
-pub trait RawPtrConvertible {
-    fn as_raw_ptr(&self) -> *const c_char;
+pub trait AsRawHandle {
+    type Handle;
+    
+    fn as_raw_handle(&self) -> Self::Handle;
 }
 
-impl<'a> RawPtrConvertible for &'a CStr {
-    fn as_raw_ptr(&self) -> *const c_char {
+
+impl<'a> AsRawHandle for &'a CStr {
+    type Handle = *const c_char;
+
+    fn as_raw_handle(&self) -> Self::Handle {
         self.as_ptr()
     }
 }
 
-impl RawPtrConvertible for CString {
-    fn as_raw_ptr(&self) -> *const c_char {
+impl AsRawHandle for CString {
+    type Handle = *const c_char;
+
+    fn as_raw_handle(&self) -> Self::Handle {
         self.as_ptr()
     }
 }
 
-pub fn coerce_extension_names<T: RawPtrConvertible>(extensions: &[T]) -> Vec<*const c_char> {
-    extensions
-        .iter()
-        .map(|ext| ext.as_raw_ptr())
-        .collect::<Vec<_>>()
+pub fn as_raw_handles<T>(slice: &[T]) -> Vec<<T as AsRawHandle>::Handle> where T: AsRawHandle {
+    slice.iter().map(|item| item.as_raw_handle()).collect()
 }
 
 pub fn coerce_string(raw_string_array: &[c_char]) -> String {
@@ -33,3 +37,4 @@ pub fn coerce_string(raw_string_array: &[c_char]) -> String {
         .expect("Failed to convert vulkan raw string")
         .to_owned()
 }
+

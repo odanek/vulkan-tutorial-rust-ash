@@ -289,14 +289,14 @@ impl TutorialApp {
                     size,
                 )
             })
-            .collect::<Vec<_>>()
+            .collect()
     }
 
     fn update_uniform_buffer(buffer: &VkBuffer, extent: vk::Extent2D, elapsed_time: f32) {
         let screen_width = extent.width as f32;
         let screen_height = extent.height as f32;
         let ubo = UniformBufferObject {
-            model: Mat4::rotate_z(elapsed_time),
+            model: Mat4::rotate_z(-0.2 * elapsed_time),
             view: Mat4::look_at(
                 &Vec3::new(0.0, 2.2, 0.9),
                 &Vec3::new(0.0, 0.0, 0.4),

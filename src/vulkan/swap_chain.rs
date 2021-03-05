@@ -7,7 +7,7 @@ use ash::{
     vk,
 };
 
-use super::{VkCommandPool, VkCommandBuffer, VkFence, VkImage, VkTexture, device::VkDevice, raw_handle::to_raw_handles, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
+use super::{VkCommandPool, VkCommandBuffer, VkFence, VkImage, VkTexture, device::VkDevice, utils, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
 
 pub struct VkSwapChainImage {
     device: Arc<VkDevice>,
@@ -129,7 +129,7 @@ impl VkSwapChain {
                 .expect("Unable to get swap chain images")
         };
 
-        for &image in images.iter() {
+        for &image in &images {
             let color_format = self.format.format;
 
             let view = VkImage::create_image_view(
@@ -222,7 +222,7 @@ impl VkSwapChain {
 
     pub fn present_image(&self, queue: vk::Queue, index: u32, semaphores: &[&VkSemaphore]) -> VkResult<bool> {
         let swapchains = [self.handle];    
-        let semaphore_handles = to_raw_handles(semaphores);
+        let semaphore_handles = utils::as_raw_handles(semaphores);
         let image_indices = [index];
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(&semaphore_handles)

@@ -4,7 +4,7 @@ use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
 
 use super::{
     command::VkCommandBuffer, physical_device::VkPhysicalDevice, queue_family::VkQueueFamily,
-    raw_handle::to_raw_handles, surface::VkSurface, utils, VkBuffer, VkCommandPool, VkFence,
+    surface::VkSurface, utils, VkBuffer, VkCommandPool, VkFence,
 };
 
 pub struct VkDevice {
@@ -39,7 +39,7 @@ impl VkDevice {
 
         let queue_priorities = [1.0f32];
         let mut queue_infos = Vec::new();
-        for &queue_family in unique_queue_families.iter() {
+        for &queue_family in &unique_queue_families {
             let queue_create_info = vk::DeviceQueueCreateInfo::builder()
                 .queue_family_index(queue_family)
                 .queue_priorities(&queue_priorities)
@@ -48,7 +48,7 @@ impl VkDevice {
         }
 
         let extensions = VkPhysicalDevice::get_required_device_extensions();
-        let extension_names = utils::coerce_extension_names(&extensions);
+        let extension_names = utils::as_raw_handles(&extensions);
         let physical_device_features =
             vk::PhysicalDeviceFeatures::builder().sampler_anisotropy(true);
         let device_create_info = vk::DeviceCreateInfo::builder()
@@ -105,7 +105,7 @@ impl VkDevice {
     }
 
     pub fn wait_for_fences(&self, fences: &[&VkFence]) {
-        let fence_handles = to_raw_handles(fences);
+        let fence_handles = utils::as_raw_handles(fences);
         unsafe {
             self.handle
                 .wait_for_fences(&fence_handles, true, std::u64::MAX)
@@ -114,7 +114,7 @@ impl VkDevice {
     }
 
     pub fn reset_fences(&self, fences: &[&VkFence]) {
-        let fence_handles = to_raw_handles(fences);
+        let fence_handles = utils::as_raw_handles(fences);
         unsafe {
             self.handle
                 .reset_fences(&fence_handles)

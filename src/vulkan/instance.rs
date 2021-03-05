@@ -10,8 +10,7 @@ use std::{
     ffi::{CStr, CString}
 };
 
-use super::debug::*;
-use super::utils::*;
+use super::{debug::*, utils};
 
 pub struct VkInstance {
     pub handle: ash::Instance
@@ -29,7 +28,7 @@ impl VkInstance {
             .api_version(vk::make_version(1, 2, 0));
 
         let extensions = enumerate_extensions(window, validation);
-        let extension_names = coerce_extension_names(&extensions);
+        let extension_names = utils::as_raw_handles(&extensions);
 
         let mut instance_create_info = vk::InstanceCreateInfo::builder()
             .application_info(&app_info)
@@ -38,7 +37,7 @@ impl VkInstance {
         if validation {
             check_validation_layer_support(&entry);
             let validation_layers = get_validation_layers();
-            let validation_layer_names = coerce_extension_names(&validation_layers);
+            let validation_layer_names = utils::as_raw_handles(&validation_layers);
             let mut debug_utils_create_info = populate_debug_messenger_create_info();
             instance_create_info = instance_create_info
                 .enabled_layer_names(&validation_layer_names)

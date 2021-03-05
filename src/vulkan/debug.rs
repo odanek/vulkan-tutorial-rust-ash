@@ -43,7 +43,7 @@ pub fn get_validation_layers() -> Vec<CString> {
     REQUIRED_LAYERS
         .iter()
         .map(|name| CString::new(*name).unwrap())
-        .collect::<Vec<_>>()
+        .collect()
 }
 
 pub fn check_validation_layer_support(entry: &Entry) {
@@ -51,7 +51,7 @@ pub fn check_validation_layer_support(entry: &Entry) {
         .enumerate_instance_layer_properties()
         .expect("Failed to enumerate Instance Layers Properties");
 
-    for required in REQUIRED_LAYERS.iter() {
+    for required in &REQUIRED_LAYERS {
         let found = available_layers.iter().any(|layer| {
             let name = unsafe { CStr::from_ptr(layer.layer_name.as_ptr()) };
             let name = name.to_str().expect("Failed to get layer name pointer");
