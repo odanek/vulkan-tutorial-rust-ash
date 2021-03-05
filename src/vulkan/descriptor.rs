@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ash::{
     version::DeviceV1_0,
-    vk::{self, DescriptorPoolResetFlags},
+    vk,
 };
 
 use super::VkDevice;

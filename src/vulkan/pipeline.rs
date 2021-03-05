@@ -4,7 +4,7 @@ use ash::{version::DeviceV1_0, vk};
 
 use crate::render::Vertex;
 
-use super::{device::VkDevice, render_pass::VkRenderPass, swap_chain::VkSwapChain, VkShaderModule};
+use super::{device::VkDevice, render_pass::VkRenderPass, VkShaderModule};
 
 use memoffset::offset_of;
 
@@ -74,7 +74,7 @@ impl VkPipeline {
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1.0f32)
             .cull_mode(vk::CullModeFlags::BACK)
-            .front_face(vk::FrontFace::CLOCKWISE)
+            .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
             .depth_bias_enable(false)
             .depth_bias_constant_factor(0.0)
             .depth_bias_clamp(0.0)

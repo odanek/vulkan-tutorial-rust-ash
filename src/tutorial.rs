@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Instant};
+use std::{fs::File, io::{Cursor, Read}, path::Path, sync::Arc, time::Instant};
 
 use crate::{
     app::App,
@@ -12,51 +12,6 @@ use crate::{
 use ash::{version::DeviceV1_0, vk};
 use winit::{dpi::PhysicalSize, window::Window};
 
-const VERTICES: [Vertex; 8] = [
-    Vertex {
-        position: Vec3::new(-0.5, 0.5, 0.0),
-        color: Vec3::new(1.0, 0.0, 0.0),
-        tex_coord: Vec2::new(0.0, 1.0),
-    },
-    Vertex {
-        position: Vec3::new(0.5, 0.5, 0.0),
-        color: Vec3::new(0.0, 1.0, 0.0),
-        tex_coord: Vec2::new(1.0, 1.0),
-    },
-    Vertex {
-        position: Vec3::new(0.5, -0.5, 0.0),
-        color: Vec3::new(0.0, 0.0, 1.0),
-        tex_coord: Vec2::new(1.0, 0.0),
-    },
-    Vertex {
-        position: Vec3::new(-0.5, -0.5, 0.0),
-        color: Vec3::new(1.0, 0.0, 1.0),
-        tex_coord: Vec2::new(0.0, 0.0),
-    },
-    Vertex {
-        position: Vec3::new(-0.5, 0.5, -1.0),
-        color: Vec3::new(1.0, 0.0, 0.0),
-        tex_coord: Vec2::new(0.0, 1.0),
-    },
-    Vertex {
-        position: Vec3::new(0.5, 0.5, -1.0),
-        color: Vec3::new(0.0, 1.0, 0.0),
-        tex_coord: Vec2::new(1.0, 1.0),
-    },
-    Vertex {
-        position: Vec3::new(0.5, -0.5, -1.0),
-        color: Vec3::new(0.0, 0.0, 1.0),
-        tex_coord: Vec2::new(1.0, 0.0),
-    },
-    Vertex {
-        position: Vec3::new(-0.5, -0.5, -1.0),
-        color: Vec3::new(1.0, 0.0, 1.0),
-        tex_coord: Vec2::new(0.0, 0.0),
-    },
-];
-
-const INDICES: [u16; 12] = [0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4];
-
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct UniformBufferObject {
@@ -64,6 +19,8 @@ struct UniformBufferObject {
     view: Mat4,
     proj: Mat4,
 }
+
+pub struct Model(Vec<Vertex>, Vec<u32>);
 
 pub struct TutorialAppSwapChainContext {
     uniform_buffers: Vec<VkBuffer>,
@@ -80,6 +37,7 @@ pub struct TutorialApp {
     texture_image: VkTexture,
     index_buffer: VkBuffer,
     vertex_buffer: VkBuffer,
+    model: Model,
     descriptor_pool: VkDescriptorPool,
     descriptor_set_layout: VkDescriptorSetLayout,
     vertex_shader_module: VkShaderModule,
@@ -136,8 +94,9 @@ impl TutorialApp {
         let descriptor_set_layout = Self::create_descriptor_set_layout(&vk_context);
         let descriptor_pool = Self::create_descriptor_pool(&vk_context, swap_image_count);
 
-        let vertex_buffer = Self::create_vertex_buffer(&vk_context, &command_pool);
-        let index_buffer = Self::create_index_buffer(&vk_context, &command_pool);
+        let model = Self::load_model();
+        let vertex_buffer = Self::create_vertex_buffer(&vk_context, &command_pool, &model.0);
+        let index_buffer = Self::create_index_buffer(&vk_context, &command_pool, &model.1);
         let texture_image = Self::create_texture_image(&vk_context, &command_pool);
         let sampler = Self::create_sampler(&vk_context, &texture_image);
         let window_size = window.inner_size();
@@ -149,6 +108,7 @@ impl TutorialApp {
             texture_image,
             index_buffer,
             vertex_buffer,
+            model,
             descriptor_set_layout,
             descriptor_pool,
             vertex_shader_module,
@@ -296,23 +256,23 @@ impl TutorialApp {
         )
     }
 
-    fn create_vertex_buffer(context: &VkContext, command_pool: &Arc<VkCommandPool>) -> VkBuffer {
+    fn create_vertex_buffer(context: &VkContext, command_pool: &Arc<VkCommandPool>, vertices: &Vec<Vertex>) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
             &command_pool,
             context.device.graphics_queue,
             vk::BufferUsageFlags::VERTEX_BUFFER,
-            &VERTICES,
+            vertices,
         )
     }
 
-    fn create_index_buffer(context: &VkContext, command_pool: &Arc<VkCommandPool>) -> VkBuffer {
+    fn create_index_buffer(context: &VkContext, command_pool: &Arc<VkCommandPool>, indices: &Vec<u32>) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
             &command_pool,
             context.device.graphics_queue,
             vk::BufferUsageFlags::INDEX_BUFFER,
-            &INDICES,
+            indices,
         )
     }
 
@@ -338,9 +298,9 @@ impl TutorialApp {
         let ubo = UniformBufferObject {
             model: Mat4::rotate_z(elapsed_time),
             view: Mat4::look_at(
-                &Vec3::new(1.0, 1.0, 3.0),
-                &Vec3::new(0.0, 0.0, 0.0),
-                &Vec3::new(0.0, 1.0, 0.0),
+                &Vec3::new(0.0, 2.2, 0.9),
+                &Vec3::new(0.0, 0.0, 0.4),
+                &Vec3::new(0.0, 0.0, 1.0),
             ),
             proj: Mat4::perspective(0.785, screen_width / screen_height, 0.1, 10.0),
         };
@@ -429,7 +389,7 @@ impl TutorialApp {
     fn create_texture_image(context: &VkContext, command_pool: &Arc<VkCommandPool>) -> VkTexture {
         VkImage::load_texture(
             &context.device,
-            "assets/texture.jpg",
+            "assets/chalet.jpg",
             &command_pool,
             context.device.graphics_queue, // TODO: Use transfer queue
         )
@@ -442,6 +402,44 @@ impl TutorialApp {
             texture.image.mip_levels,
             properties.limits.max_sampler_anisotropy,
         )
+    }
+
+    fn load_model() -> Model {
+        log::info!("Loading model");
+        
+        let mut buf = Vec::new();
+        let fullpath = &Path::new("assets").join("chalet.obj");
+        let mut file = File::open(&fullpath).unwrap();
+        file.read_to_end(&mut buf).unwrap();
+        let mut cursor = Cursor::new(buf);
+
+        let (models, _) = tobj::load_obj_buf(&mut cursor, true, |_| {
+            Ok((vec![], std::collections::HashMap::new()))
+        })
+        .unwrap();
+
+        let mesh = &models[0].mesh;
+        let positions = mesh.positions.as_slice();
+        let coords = mesh.texcoords.as_slice();
+        let vertex_count = mesh.positions.len() / 3;
+
+        let mut vertices = Vec::with_capacity(vertex_count);
+        for i in 0..vertex_count {
+            let x = positions[i * 3];
+            let y = positions[i * 3 + 1];
+            let z = positions[i * 3 + 2];
+            let u = coords[i * 2];
+            let v = coords[i * 2 + 1];
+
+            let vertex = Vertex {
+                position: Vec3::new(x, y, z),
+                color: Vec3::new(1.0, 1.0, 1.0),
+                tex_coord: Vec2::new(u, v),
+            };
+            vertices.push(vertex);
+        }
+
+        Model(vertices, mesh.indices.clone())
     }
 
     fn record_commands(&self) {
@@ -505,7 +503,7 @@ impl TutorialApp {
                     buffer.handle,
                     self.index_buffer.handle,
                     0,
-                    vk::IndexType::UINT16,
+                    vk::IndexType::UINT32,
                 );
                 device.cmd_bind_descriptor_sets(
                     buffer.handle,
@@ -515,7 +513,7 @@ impl TutorialApp {
                     &swap_context.descriptor_sets[index..=index],
                     &[],
                 );
-                device.cmd_draw_indexed(buffer.handle, INDICES.len() as u32, 1, 0, 0, 0);
+                device.cmd_draw_indexed(buffer.handle, self.model.1.len() as u32, 1, 0, 0, 0);
                 device.cmd_end_render_pass(buffer.handle);
                 device
                     .end_command_buffer(buffer.handle)
