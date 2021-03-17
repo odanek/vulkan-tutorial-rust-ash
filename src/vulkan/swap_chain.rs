@@ -101,7 +101,7 @@ impl VkSwapChain {
         }
     }
 
-    pub fn image_count(&self) -> usize {
+    pub fn _image_count(&self) -> usize {
         return self.images.len();
     }
 

@@ -8,16 +8,6 @@ pub struct Mat4 {
     data: [f32; 16]
 }
 
-#[cfg_attr(rustfmt, rustfmt::skip)]
-pub const IDENT4: Mat4 = Mat4 {
-    data: [
-        1.0, 0.0, 0.0, 0.0, 
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0
-    ]
-};
-
 impl Mat4 {
     pub fn scale(x: f32, y: f32, z: f32) -> Mat4 {
         Mat4 {

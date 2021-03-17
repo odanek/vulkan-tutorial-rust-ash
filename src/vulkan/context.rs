@@ -21,7 +21,7 @@ pub struct VkContext {
 
 impl VkContext {
     pub fn new(window: &Window, settings: &VkSettings) -> VkContext {
-        let entry = Box::new(Entry::new().expect("Failed to create Vulkan entry."));
+        let entry = Box::new(unsafe { Entry::new().expect("Failed to create Vulkan entry.") });
         let instance = Arc::new(VkInstance::new(window, &entry, settings.validation));
         let validation = if settings.validation {
             Some(VkValidation::new(&entry, &instance))

@@ -122,7 +122,7 @@ impl VkDevice {
         }
     }
 
-    pub fn get_mem_properties(&self) -> vk::PhysicalDeviceMemoryProperties {
+    pub fn _get_mem_properties(&self) -> vk::PhysicalDeviceMemoryProperties {
         self.physical_device.get_mem_properties()
     }
 
@@ -130,7 +130,7 @@ impl VkDevice {
         self.physical_device.get_format_properties(format)
     }
 
-    pub fn get_features(&self) -> vk::PhysicalDeviceFeatures {
+    pub fn _get_features(&self) -> vk::PhysicalDeviceFeatures {
         self.physical_device.get_features()
     }
 

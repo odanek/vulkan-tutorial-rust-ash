@@ -8,16 +8,6 @@ pub struct Vec2 {
     data: [f32; 2],
 }
 
-pub const ZERO2: Vec2 = Vec2 {
-    data: [0.0, 0.0],
-};
-pub const X2: Vec2 = Vec2 {
-    data: [1.0, 0.0],
-};
-pub const Y2: Vec2 = Vec2 {
-    data: [0.0, 1.0],
-};
-
 impl Vec2 {
     pub const fn new(x: f32, y: f32) -> Vec2 {
         Vec2 { data: [x, y] }
@@ -201,19 +191,6 @@ impl ops::Neg for &Vec2 {
 pub struct Vec3 {
     data: [f32; 3],
 }
-
-pub const ZERO3: Vec3 = Vec3 {
-    data: [0.0, 0.0, 0.0],
-};
-pub const X3: Vec3 = Vec3 {
-    data: [1.0, 0.0, 0.0],
-};
-pub const Y3: Vec3 = Vec3 {
-    data: [0.0, 1.0, 0.0],
-};
-pub const Z3: Vec3 = Vec3 {
-    data: [0.0, 0.0, 1.0],
-};
 
 impl Vec3 {
     pub const fn new(x: f32, y: f32, z: f32) -> Vec3 {
@@ -436,19 +413,6 @@ impl ops::Neg for &Vec3 {
 pub struct Vec4 {
     data: [f32; 4],
 }
-
-pub const ZERO4H: Vec4 = Vec4 {
-    data: [0.0, 0.0, 0.0, 1.0],
-};
-pub const X4H: Vec4 = Vec4 {
-    data: [1.0, 0.0, 0.0, 1.0],
-};
-pub const Y4H: Vec4 = Vec4 {
-    data: [0.0, 1.0, 0.0, 1.0],
-};
-pub const Z4H: Vec4 = Vec4 {
-    data: [0.0, 0.0, 1.0, 1.0],
-};
 
 impl Vec4 {
     pub const fn new(x: f32, y: f32, z: f32, w: f32) -> Vec4 {
