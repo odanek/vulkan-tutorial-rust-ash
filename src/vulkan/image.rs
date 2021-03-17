@@ -15,14 +15,14 @@ pub struct VkImage {
     pub memory: vk::DeviceMemory,
     pub extent: vk::Extent3D,
     pub mip_levels: u32,
-    pub msaa_samples: vk::SampleCountFlags
+    pub msaa_samples: vk::SampleCountFlags,
 }
 
 pub struct VkTexture {
     device: Arc<VkDevice>,
-    pub image: VkImage,    
+    pub image: VkImage,
     pub view: vk::ImageView,
-    pub format: vk::Format
+    pub format: vk::Format,
 }
 
 pub struct VkSampler {
@@ -73,7 +73,7 @@ impl VkImage {
             memory,
             extent,
             mip_levels,
-            msaa_samples
+            msaa_samples,
         }
     }
 
@@ -81,7 +81,7 @@ impl VkImage {
         device: &Arc<VkDevice>,
         path: &str,
         command_pool: &Arc<VkCommandPool>,
-        transfer_queue: vk::Queue
+        transfer_queue: vk::Queue,
     ) -> VkTexture {
         let mut buf = Vec::new();
         let mut file = File::open(path).unwrap();
@@ -155,17 +155,13 @@ impl VkImage {
             max_mip_levels,
         );
 
-        let view = image.create_view(
-            max_mip_levels,
-            format,
-            vk::ImageAspectFlags::COLOR,
-        );
+        let view = image.create_view(max_mip_levels, format, vk::ImageAspectFlags::COLOR);
 
         VkTexture {
             device: Arc::clone(device),
             image,
             view,
-            format
+            format,
         }
     }
 
@@ -203,14 +199,13 @@ impl VkImage {
             vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         );
 
-        let view =
-            image.create_view(1, format, vk::ImageAspectFlags::DEPTH);
+        let view = image.create_view(1, format, vk::ImageAspectFlags::DEPTH);
 
         VkTexture {
             device: Arc::clone(device),
             image,
-            view,            
-            format
+            view,
+            format,
         }
     }
 
@@ -235,15 +230,14 @@ impl VkImage {
             vk::ImageUsageFlags::TRANSIENT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT,
         );
         let view = image.create_view(1, format, vk::ImageAspectFlags::COLOR);
-    
+
         VkTexture {
             device: Arc::clone(device),
             image,
             view,
-            format
+            format,
         }
     }
-    
 
     pub fn create_view(
         &self,
@@ -464,7 +458,7 @@ fn transition_image_layout(
     });
 }
 
-fn copy_buffer_to_image(    
+fn copy_buffer_to_image(
     device: &VkDevice,
     command_pool: &Arc<VkCommandPool>,
     transition_queue: vk::Queue,

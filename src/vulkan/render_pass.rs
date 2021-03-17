@@ -15,7 +15,7 @@ impl VkRenderPass {
         format: vk::Format,
         depth_format: vk::Format,
         msaa_samples: vk::SampleCountFlags,
-    ) -> VkRenderPass {        
+    ) -> VkRenderPass {
         let color_attachment_desc = vk::AttachmentDescription::builder()
             .format(format)
             .samples(msaa_samples)

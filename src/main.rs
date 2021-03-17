@@ -1,15 +1,15 @@
 // #![windows_subsystem = "windows"]
 
 mod app;
-mod tutorial;
 mod logger;
 mod render;
+mod tutorial;
 mod vulkan;
 
 use app::App;
-use tutorial::TutorialApp;
 use log::LevelFilter;
 use logger::init_logging;
+use tutorial::TutorialApp;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -28,7 +28,7 @@ fn main() {
 
     let window_size = PhysicalSize::new(800, 600);
     let (event_loop, window) = create_window(&window_size);
-    let mut app = TutorialApp::new(&window);    
+    let mut app = TutorialApp::new(&window);
     let mut exit = false;
 
     log::info!("Starting event loop");
@@ -37,7 +37,7 @@ fn main() {
             // app.update();
             if !exit {
                 app.draw_frame(&window);
-            }            
+            }
             // window.request_redraw();
         }
         Event::WindowEvent { event, .. } => match event {

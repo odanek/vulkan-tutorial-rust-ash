@@ -2,7 +2,10 @@ use std::{ffi::CStr, sync::Arc};
 
 use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk};
 
-use super::{instance::VkInstance, queue_family::VkQueueFamily, surface::VkSurface, utils::coerce_string, version::VkVersion};
+use super::{
+    instance::VkInstance, queue_family::VkQueueFamily, surface::VkSurface, utils::coerce_string,
+    version::VkVersion,
+};
 
 #[derive(Debug)]
 pub enum DeviceType {
@@ -52,25 +55,33 @@ impl VkPhysicalDevice {
 
     pub fn get_mem_properties(&self) -> vk::PhysicalDeviceMemoryProperties {
         unsafe {
-            self.instance.handle.get_physical_device_memory_properties(self.handle)
+            self.instance
+                .handle
+                .get_physical_device_memory_properties(self.handle)
         }
     }
 
     pub fn get_format_properties(&self, format: vk::Format) -> vk::FormatProperties {
         unsafe {
-            self.instance.handle.get_physical_device_format_properties(self.handle, format)
+            self.instance
+                .handle
+                .get_physical_device_format_properties(self.handle, format)
         }
     }
 
     pub fn get_features(&self) -> vk::PhysicalDeviceFeatures {
         unsafe {
-            self.instance.handle.get_physical_device_features(self.handle)
+            self.instance
+                .handle
+                .get_physical_device_features(self.handle)
         }
     }
 
     pub fn get_properties(&self) -> vk::PhysicalDeviceProperties {
         unsafe {
-            self.instance.handle.get_physical_device_properties(self.handle)
+            self.instance
+                .handle
+                .get_physical_device_properties(self.handle)
         }
     }
 
@@ -154,7 +165,10 @@ fn describe_device(device: &VkPhysicalDevice) {
     log::info!("Geometry Shader support: {}", features.geometry_shader == 1);
 
     let properties = device.get_properties();
-    log::info!("Max sampler anisotropy: {}", properties.limits.max_sampler_anisotropy);
+    log::info!(
+        "Max sampler anisotropy: {}",
+        properties.limits.max_sampler_anisotropy
+    );
 }
 
 fn rate_device_suitability(
@@ -234,10 +248,7 @@ fn has_queue_family(
         .any(|family| family.queue_count > 0 && predicate(family))
 }
 
-fn check_device_extension_support(   
-    device: &VkPhysicalDevice,
-    extensions: &[&CStr],
-) -> bool {
+fn check_device_extension_support(device: &VkPhysicalDevice, extensions: &[&CStr]) -> bool {
     let instance = &device.instance.handle;
     let extension_props = unsafe {
         instance

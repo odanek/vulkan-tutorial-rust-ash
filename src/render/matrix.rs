@@ -5,7 +5,7 @@ use super::{Vec3, Vec4};
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug)]
 pub struct Mat4 {
-    data: [f32; 16]
+    data: [f32; 16],
 }
 
 impl Mat4 {
@@ -17,7 +17,7 @@ impl Mat4 {
                 0.0, y, 0.0, 0.0,
                 0.0, 0.0, z, 0.0,
                 0.0, 0.0, 0.0, 1.0
-            ]
+            ],
         }
     }
 
@@ -29,11 +29,11 @@ impl Mat4 {
         Mat4 {
             #[cfg_attr(rustfmt, rustfmt::skip)]
             data: [
-                1.0, 0.0, 0.0, 0.0, 
+                1.0, 0.0, 0.0, 0.0,
                 0.0, 1.0, 0.0, 0.0,
                 0.0, 0.0, 1.0, 0.0,
                 x, y, z, 1.0
-            ]            
+            ],
         }
     }
 
@@ -57,7 +57,7 @@ impl Mat4 {
                 x * y * mc - z * s, y * y * mc + c, y * z * mc + x * s, 0.0,
                 x * z * mc + y * s, y * z * mc - x * s, z * z * mc + c, 0.0,
                 0.0, 0.0, 0.0, 1.0
-            ]
+            ],
         }
     }
 
@@ -72,7 +72,7 @@ impl Mat4 {
                 0.0, c, s, 0.0,
                 0.0, -s, c, 0.0,
                 0.0, 0.0, 0.0, 1.0
-            ]
+            ],
         }
     }
 
@@ -87,7 +87,7 @@ impl Mat4 {
                 0.0, 1.0, 0.0, 0.0,
                 s, 0.0, c, 0.0,
                 0.0, 0.0, 0.0, 1.0
-            ]
+            ],
         }
     }
 
@@ -102,7 +102,7 @@ impl Mat4 {
                 -s, c, 0.0, 0.0,
                 0.0, 0.0, 1.0, 0.0,
                 0.0, 0.0, 0.0, 1.0
-            ]
+            ],
         }
     }
 
@@ -118,14 +118,14 @@ impl Mat4 {
                 0.0, -f, 0.0, 0.0,
                 0.0, 0.0, -far_clip / d, -1.0,
                 0.0, 0.0, -(far_clip * near_clip) / d, 0.0
-            ]
+            ],
         }
     }
 
     pub fn ortho(left: f32, right: f32, top: f32, bottom: f32, near: f32, far: f32) -> Mat4 {
         let x = right - left;
-        let y= top - bottom;
-        let z= far - near;
+        let y = top - bottom;
+        let z = far - near;
 
         Mat4 {
             #[cfg_attr(rustfmt, rustfmt::skip)]
@@ -134,7 +134,7 @@ impl Mat4 {
                 0.0, 2.0 / y, 0.0, 0.0,
                 0.0, 0.0, -2.0 / z, 0.0,
                 (left + right) / -x, (bottom + top) / -y, (near + far) / -z, 1.0
-            ]
+            ],
         }
     }
 
@@ -149,7 +149,7 @@ impl Mat4 {
                 s.y(), u.y(), -f.y(), 0.0,
                 s.z(), u.z(), -f.z(), 0.0,
                 0.0, 0.0, 0.0, 1.0
-            ]
+            ],
         };
         m * (-eye).translation_mat()
     }
@@ -164,7 +164,7 @@ impl Mat4 {
                 data[1], data[5], data[9], data[13],
                 data[2], data[6], data[10], data[14],
                 data[3], data[7], data[11], data[15]
-            ]
+            ],
         }
     }
 }
@@ -191,7 +191,7 @@ impl ops::Add<Mat4> for Mat4 {
                 self.data[13] + rhs.data[13],
                 self.data[14] + rhs.data[14],
                 self.data[15] + rhs.data[15],
-            ]
+            ],
         }
     }
 }
@@ -243,9 +243,7 @@ impl ops::Mul<&Mat4> for &Mat4 {
             }
         }
 
-        Mat4 {
-            data
-        }
+        Mat4 { data }
     }
 }
 

@@ -1,4 +1,4 @@
-use super::{Vec3, vector::Vec2};
+use super::{vector::Vec2, Vec3};
 
 #[derive(Clone, Copy)]
 #[repr(C)]

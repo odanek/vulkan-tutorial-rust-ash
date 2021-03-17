@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use ash::{
-    version::DeviceV1_0,
-    vk,
-};
+use ash::{version::DeviceV1_0, vk};
 
 use super::VkDevice;
 

@@ -6,14 +6,12 @@ use ash::{
     vk,
 };
 
-use std::{
-    ffi::{CStr, CString}
-};
+use std::ffi::{CStr, CString};
 
 use super::{debug::*, utils};
 
 pub struct VkInstance {
-    pub handle: ash::Instance
+    pub handle: ash::Instance,
 }
 
 impl VkInstance {
@@ -43,9 +41,9 @@ impl VkInstance {
                 .enabled_layer_names(&validation_layer_names)
                 .push_next(&mut debug_utils_create_info);
 
-            build_instance(entry, instance_create_info)           
+            build_instance(entry, instance_create_info)
         } else {
-            build_instance(entry, instance_create_info)        
+            build_instance(entry, instance_create_info)
         }
     }
 }
@@ -65,9 +63,7 @@ fn build_instance(entry: &ash::Entry, info: vk::InstanceCreateInfoBuilder) -> Vk
             .create_instance(&info, None)
             .expect("Unable t ocreate Vulkan instance")
     };
-    VkInstance {
-        handle
-    }
+    VkInstance { handle }
 }
 
 fn enumerate_extensions(window: &Window, validation: bool) -> Vec<&'static CStr> {

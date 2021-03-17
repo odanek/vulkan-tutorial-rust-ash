@@ -69,10 +69,7 @@ impl ops::Add<&Vec2> for &Vec2 {
 
     fn add(self, rhs: &Vec2) -> Self::Output {
         Vec2 {
-            data: [
-                self.data[0] + rhs.data[0],
-                self.data[1] + rhs.data[1],
-            ],
+            data: [self.data[0] + rhs.data[0], self.data[1] + rhs.data[1]],
         }
     }
 }
@@ -106,10 +103,7 @@ impl ops::Sub<&Vec2> for &Vec2 {
 
     fn sub(self, rhs: &Vec2) -> Self::Output {
         Vec2 {
-            data: [
-                self.data[0] - rhs.data[0],
-                self.data[1] - rhs.data[1],
-            ],
+            data: [self.data[0] - rhs.data[0], self.data[1] - rhs.data[1]],
         }
     }
 }
@@ -251,7 +245,7 @@ impl Vec3 {
 
     pub fn homogenous(&self) -> Vec4 {
         Vec4 {
-            data: [self.data[0], self.data[1], self.data[2], 1.0]
+            data: [self.data[0], self.data[1], self.data[2], 1.0],
         }
     }
 
@@ -527,7 +521,12 @@ impl ops::Mul<f32> for &Vec4 {
 
     fn mul(self, rhs: f32) -> Self::Output {
         Vec4 {
-            data: [self.data[0] * rhs, self.data[1] * rhs, self.data[2] * rhs, self.data[3] * rhs],
+            data: [
+                self.data[0] * rhs,
+                self.data[1] * rhs,
+                self.data[2] * rhs,
+                self.data[3] * rhs,
+            ],
         }
     }
 }
@@ -545,7 +544,12 @@ impl ops::Mul<&Vec4> for f32 {
 
     fn mul(self, rhs: &Vec4) -> Self::Output {
         Vec4 {
-            data: [self * rhs.data[0], self * rhs.data[1], self * rhs.data[2], self * rhs.data[3]],
+            data: [
+                self * rhs.data[0],
+                self * rhs.data[1],
+                self * rhs.data[2],
+                self * rhs.data[3],
+            ],
         }
     }
 }
@@ -563,7 +567,12 @@ impl ops::Div<f32> for &Vec4 {
 
     fn div(self, rhs: f32) -> Self::Output {
         Vec4 {
-            data: [self.data[0] / rhs, self.data[1] / rhs, self.data[2] / rhs, self.data[3] / rhs],
+            data: [
+                self.data[0] / rhs,
+                self.data[1] / rhs,
+                self.data[2] / rhs,
+                self.data[3] / rhs,
+            ],
         }
     }
 }

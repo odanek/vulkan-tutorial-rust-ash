@@ -5,8 +5,7 @@ use winit::window::Window;
 use ash::Entry;
 
 use super::{
-    debug::VkValidation, device::VkDevice,
-    instance::VkInstance, physical_device::VkPhysicalDevice,
+    debug::VkValidation, device::VkDevice, instance::VkInstance, physical_device::VkPhysicalDevice,
     settings::VkSettings, surface::VkSurface,
 };
 

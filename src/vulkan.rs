@@ -19,9 +19,9 @@ mod swap_chain;
 mod utils;
 mod version;
 
-pub use self::image::{VkImage, VkTexture, VkSampler};
+pub use self::image::{VkImage, VkSampler, VkTexture};
 pub use buffer::VkBuffer;
-pub use command::{VkCommandPool, VkCommandBuffer};
+pub use command::{VkCommandBuffer, VkCommandPool};
 pub use context::VkContext;
 pub use descriptor::{VkDescriptorPool, VkDescriptorSetLayout};
 pub use device::VkDevice;

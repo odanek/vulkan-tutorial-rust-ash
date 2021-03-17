@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
-use ash::{
-    extensions::khr::Swapchain,
-    prelude::VkResult,
-    version::DeviceV1_0,
-    vk,
-};
+use ash::{extensions::khr::Swapchain, prelude::VkResult, version::DeviceV1_0, vk};
 
-use super::{VkCommandPool, VkCommandBuffer, VkFence, VkImage, VkTexture, device::VkDevice, utils, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface};
+use super::{
+    device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface, utils,
+    VkCommandBuffer, VkCommandPool, VkFence, VkImage, VkTexture,
+};
 
 pub struct VkSwapChainImage {
     device: Arc<VkDevice>,
@@ -175,11 +173,11 @@ impl VkSwapChain {
             let available = VkSemaphore::new(&self.device);
             let finished = VkSemaphore::new(&self.device);
             let in_flight = VkFence::new(&self.device);
-    
+
             let frame = VkFrame {
                 available,
                 finished,
-                in_flight
+                in_flight,
             };
 
             self.frames.push(frame);
@@ -220,8 +218,13 @@ impl VkSwapChain {
         }
     }
 
-    pub fn present_image(&self, queue: vk::Queue, index: u32, semaphores: &[&VkSemaphore]) -> VkResult<bool> {
-        let swapchains = [self.handle];    
+    pub fn present_image(
+        &self,
+        queue: vk::Queue,
+        index: u32,
+        semaphores: &[&VkSemaphore],
+    ) -> VkResult<bool> {
+        let swapchains = [self.handle];
         let semaphore_handles = utils::as_raw_handles(semaphores);
         let image_indices = [index];
         let present_info = vk::PresentInfoKHR::builder()
@@ -229,11 +232,7 @@ impl VkSwapChain {
             .swapchains(&swapchains)
             .image_indices(&image_indices);
 
-        unsafe {
-            self
-                .extension
-                .queue_present(queue, &present_info)
-        }
+        unsafe { self.extension.queue_present(queue, &present_info) }
     }
 
     pub fn cleanup_images(&mut self) {

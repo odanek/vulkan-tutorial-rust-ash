@@ -71,7 +71,7 @@ impl VkBuffer {
             align.copy_from_slice(data);
             self.device.handle.unmap_memory(self.memory);
         }
-    }    
+    }
 }
 
 impl Drop for VkBuffer {

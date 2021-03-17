@@ -1,4 +1,10 @@
-use std::{fs::File, io::{Cursor, Read}, path::Path, sync::Arc, time::Instant};
+use std::{
+    fs::File,
+    io::{Cursor, Read},
+    path::Path,
+    sync::Arc,
+    time::Instant,
+};
 
 use crate::{
     app::App,
@@ -216,7 +222,7 @@ impl TutorialApp {
             pipeline,
             uniform_buffers,
             descriptor_sets,
-        }        
+        }
     }
 
     fn recreate_swap_chain(&mut self, size: PhysicalSize<u32>) {
@@ -256,7 +262,11 @@ impl TutorialApp {
         )
     }
 
-    fn create_vertex_buffer(context: &VkContext, command_pool: &Arc<VkCommandPool>, vertices: &Vec<Vertex>) -> VkBuffer {
+    fn create_vertex_buffer(
+        context: &VkContext,
+        command_pool: &Arc<VkCommandPool>,
+        vertices: &Vec<Vertex>,
+    ) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
             &command_pool,
@@ -266,7 +276,11 @@ impl TutorialApp {
         )
     }
 
-    fn create_index_buffer(context: &VkContext, command_pool: &Arc<VkCommandPool>, indices: &Vec<u32>) -> VkBuffer {
+    fn create_index_buffer(
+        context: &VkContext,
+        command_pool: &Arc<VkCommandPool>,
+        indices: &Vec<u32>,
+    ) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
             &command_pool,
@@ -406,7 +420,7 @@ impl TutorialApp {
 
     fn load_model() -> Model {
         log::info!("Loading model");
-        
+
         let mut buf = Vec::new();
         let fullpath = &Path::new("assets").join("chalet.obj");
         let mut file = File::open(&fullpath).unwrap();

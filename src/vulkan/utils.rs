@@ -5,10 +5,9 @@ use std::{
 
 pub trait AsRawHandle {
     type Handle;
-    
+
     fn as_raw_handle(&self) -> Self::Handle;
 }
-
 
 impl<'a> AsRawHandle for &'a CStr {
     type Handle = *const c_char;
@@ -26,7 +25,10 @@ impl AsRawHandle for CString {
     }
 }
 
-pub fn as_raw_handles<T>(slice: &[T]) -> Vec<<T as AsRawHandle>::Handle> where T: AsRawHandle {
+pub fn as_raw_handles<T>(slice: &[T]) -> Vec<<T as AsRawHandle>::Handle>
+where
+    T: AsRawHandle,
+{
     slice.iter().map(|item| item.as_raw_handle()).collect()
 }
 
@@ -37,4 +39,3 @@ pub fn coerce_string(raw_string_array: &[c_char]) -> String {
         .expect("Failed to convert vulkan raw string")
         .to_owned()
 }
-

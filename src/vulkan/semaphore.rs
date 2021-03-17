@@ -19,9 +19,9 @@ impl VkSemaphore {
                 .expect("Unable t ocreate a semaphore")
         };
 
-        VkSemaphore { 
+        VkSemaphore {
             device: Arc::clone(device),
-            handle 
+            handle,
         }
     }
 }

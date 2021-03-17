@@ -22,7 +22,7 @@ impl VkPipeline {
         vertex_shader_module: &VkShaderModule,
         fragment_shader_module: &VkShaderModule,
         descriptor_set_layouts: &[vk::DescriptorSetLayout],
-        msaa_samples: vk::SampleCountFlags
+        msaa_samples: vk::SampleCountFlags,
     ) -> VkPipeline {
         log::info!("Creating pipeline");
 
@@ -134,7 +134,7 @@ impl VkPipeline {
             .rasterization_state(&rasterizer_info)
             .depth_stencil_state(&depth_stencil_info)
             .multisample_state(&multisampling_info)
-            .color_blend_state(&color_blending_info)            
+            .color_blend_state(&color_blending_info)
             .layout(layout)
             .render_pass(render_pass.handle)
             .subpass(0)

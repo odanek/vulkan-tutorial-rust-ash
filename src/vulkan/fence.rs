@@ -20,9 +20,9 @@ impl VkFence {
                 .expect("Unable t ocreate fence")
         };
 
-        VkFence { 
+        VkFence {
             device: Arc::clone(device),
-            handle 
+            handle,
         }
     }
 }
