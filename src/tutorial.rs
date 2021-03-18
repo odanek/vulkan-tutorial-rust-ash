@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     app::App,
-    render::{Mat4, Vec2, Vec3, Vertex},
+    cgm::{Mat4, Vec2, Vec3, Vertex},
     vulkan::{
         VkBuffer, VkCommandPool, VkContext, VkDescriptorPool, VkDescriptorSetLayout, VkDevice,
         VkImage, VkPipeline, VkRenderPass, VkSampler, VkSettings, VkShaderModule, VkSurface,

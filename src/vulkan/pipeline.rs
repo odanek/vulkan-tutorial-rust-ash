@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ash::{version::DeviceV1_0, vk};
 
-use crate::render::Vertex;
+use crate::cgm::Vertex;
 
 use super::{device::VkDevice, render_pass::VkRenderPass, VkShaderModule};
 

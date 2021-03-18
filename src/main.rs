@@ -2,7 +2,7 @@
 
 mod app;
 mod logger;
-mod render;
+mod cgm;
 mod tutorial;
 mod vulkan;
 
