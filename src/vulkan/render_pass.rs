@@ -71,12 +71,13 @@ impl VkRenderPass {
             .build();
 
         let color_attachment_refs = [color_attachment_ref];
+        let color_attachment_resolve_refs = [color_attachment_resolve_ref];
 
         let subpass_desc = vk::SubpassDescription::builder()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&color_attachment_refs)
             .depth_stencil_attachment(&depth_attachment_ref)
-            .resolve_attachments(&[color_attachment_resolve_ref])
+            .resolve_attachments(&color_attachment_resolve_refs)
             .build();
         let subpass_descs = [subpass_desc];
 
