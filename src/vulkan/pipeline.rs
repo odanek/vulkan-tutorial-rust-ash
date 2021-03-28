@@ -62,7 +62,7 @@ impl VkPipeline {
         }];
         let scissors = [vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
-            extent: extent,
+            extent,
         }];
         let viewport_info = vk::PipelineViewportStateCreateInfo::builder()
             .viewports(&viewports)

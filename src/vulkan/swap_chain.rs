@@ -100,11 +100,11 @@ impl VkSwapChain {
     }
 
     pub fn _image_count(&self) -> usize {
-        return self.images.len();
+        self.images.len()
     }
 
     pub fn frame_count(&self) -> usize {
-        return self.frames.len();
+        self.frames.len()
     }
 
     pub fn advance_frame(&self, frame: usize) -> usize {

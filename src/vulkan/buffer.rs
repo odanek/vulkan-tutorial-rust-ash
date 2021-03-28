@@ -110,7 +110,7 @@ fn assign_buffer_memory(
         .allocation_size(mem_requirements.size)
         .memory_type_index(mem_type_index)
         .build();
-    let memory = unsafe {
+    unsafe {
         let vertex_buffer_memory = device
             .handle
             .allocate_memory(&alloc_info, None)
@@ -120,6 +120,5 @@ fn assign_buffer_memory(
             .bind_buffer_memory(buffer, vertex_buffer_memory, 0)
             .expect("Unable to bind image memory");
         vertex_buffer_memory
-    };
-    memory
+    }
 }

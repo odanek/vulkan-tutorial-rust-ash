@@ -1,8 +1,8 @@
 // #![windows_subsystem = "windows"]
 
 mod app;
-mod logger;
 mod cgm;
+mod logger;
 mod tutorial;
 mod vulkan;
 

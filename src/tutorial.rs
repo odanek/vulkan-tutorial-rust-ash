@@ -265,7 +265,7 @@ impl TutorialApp {
     fn create_vertex_buffer(
         context: &VkContext,
         command_pool: &Arc<VkCommandPool>,
-        vertices: &Vec<Vertex>,
+        vertices: &[Vertex],
     ) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
@@ -279,7 +279,7 @@ impl TutorialApp {
     fn create_index_buffer(
         context: &VkContext,
         command_pool: &Arc<VkCommandPool>,
-        indices: &Vec<u32>,
+        indices: &[u32],
     ) -> VkBuffer {
         VkBuffer::new_device_local(
             &context.device,
@@ -511,7 +511,7 @@ impl TutorialApp {
                 );
 
                 let buffers = [self.vertex_buffer.handle];
-                let offsets = [0 as vk::DeviceSize];
+                let offsets = [0];
                 device.cmd_bind_vertex_buffers(buffer.handle, 0, &buffers, &offsets);
                 device.cmd_bind_index_buffer(
                     buffer.handle,
