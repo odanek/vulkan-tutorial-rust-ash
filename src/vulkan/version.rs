@@ -1,6 +1,6 @@
 use std::fmt;
 
-use ash::vk::{version_major, version_minor, version_patch};
+use ash::vk::{api_version_major, api_version_minor, api_version_patch};
 
 pub struct VkVersion {
     major: u32,
@@ -10,9 +10,9 @@ pub struct VkVersion {
 
 impl VkVersion {
     pub fn parse(value: u32) -> VkVersion {
-        let major = version_major(value);
-        let minor = version_minor(value);
-        let patch = version_patch(value);
+        let major = api_version_major(value);
+        let minor = api_version_minor(value);
+        let patch = api_version_patch(value);
         VkVersion {
             major,
             minor,

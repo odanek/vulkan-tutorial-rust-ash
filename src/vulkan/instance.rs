@@ -1,10 +1,6 @@
 use winit::window::Window;
 
-use ash::{
-    extensions::ext::DebugUtils,
-    version::{EntryV1_0, InstanceV1_0},
-    vk,
-};
+use ash::{extensions::ext::DebugUtils, vk};
 
 use std::ffi::{CStr, CString};
 
@@ -20,10 +16,10 @@ impl VkInstance {
         let engine_name = CString::new("No Engine").unwrap();
         let app_info = vk::ApplicationInfo::builder()
             .application_name(app_name.as_c_str())
-            .application_version(vk::make_version(1, 0, 0))
+            .application_version(vk::make_api_version(0, 1, 0, 0))
             .engine_name(engine_name.as_c_str())
-            .engine_version(vk::make_version(0, 0, 1))
-            .api_version(vk::make_version(1, 2, 0));
+            .engine_version(vk::make_api_version(0, 0, 0, 1))
+            .api_version(vk::make_api_version(0, 1, 2, 0));
 
         let extensions = enumerate_extensions(window, validation);
         let extension_names = utils::as_raw_handles(&extensions);

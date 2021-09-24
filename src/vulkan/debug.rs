@@ -1,6 +1,6 @@
 use std::ffi::{c_void, CStr, CString};
 
-use ash::{extensions::ext::DebugUtils, version::EntryV1_0, vk, Entry};
+use ash::{extensions::ext::DebugUtils, vk, Entry};
 
 use super::instance::VkInstance;
 

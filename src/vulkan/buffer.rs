@@ -1,6 +1,6 @@
 use std::{mem::align_of, sync::Arc};
 
-use ash::{version::DeviceV1_0, vk};
+use ash::vk;
 
 use super::{VkCommandPool, VkDevice};
 

@@ -15,7 +15,7 @@ use crate::{
         VkSwapChain, VkTexture,
     },
 };
-use ash::{version::DeviceV1_0, vk};
+use ash::vk;
 use winit::{dpi::PhysicalSize, window::Window};
 
 #[repr(C)]
@@ -427,9 +427,15 @@ impl TutorialApp {
         file.read_to_end(&mut buf).unwrap();
         let mut cursor = Cursor::new(buf);
 
-        let (models, _) = tobj::load_obj_buf(&mut cursor, true, |_| {
-            Ok((vec![], std::collections::HashMap::new()))
-        })
+        let (models, _) = tobj::load_obj_buf(
+            &mut cursor,
+            &tobj::LoadOptions {
+                triangulate: true,
+                single_index: true,
+                ..Default::default()
+            },
+            |_| unreachable!(),
+        )
         .unwrap();
 
         let mesh = &models[0].mesh;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use ash::{extensions::khr::Swapchain, prelude::VkResult, version::DeviceV1_0, vk};
+use ash::{extensions::khr::Swapchain, prelude::VkResult, vk};
 
 use super::{
     device::VkDevice, render_pass::VkRenderPass, semaphore::VkSemaphore, surface::VkSurface, utils,

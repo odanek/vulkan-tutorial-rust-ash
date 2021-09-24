@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
-use ash::{version::DeviceV1_0, version::InstanceV1_0, vk};
+use ash::vk;
 
 use super::{
     command::VkCommandBuffer, physical_device::VkPhysicalDevice, queue_family::VkQueueFamily,

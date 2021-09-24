@@ -1,6 +1,6 @@
 use std::{ffi::CStr, sync::Arc};
 
-use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk};
+use ash::{extensions::khr::Swapchain, vk};
 
 use super::{
     instance::VkInstance, queue_family::VkQueueFamily, surface::VkSurface, utils::coerce_string,

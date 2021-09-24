@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use ash::{version::DeviceV1_0, vk};
+use ash::vk;
 
 use super::{VkBuffer, VkCommandPool, VkDevice, VkPhysicalDevice};
 
